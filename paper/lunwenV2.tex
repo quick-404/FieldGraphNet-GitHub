@@ -48,12 +48,12 @@ assigned to the attack classifier's training protocol domain to that classifier
 and directs the remainder to structural clustering. A decision rule combines
 classifier alerts with structural risk indicators. On CIC IoT 2023, thresholds are
 selected from benign scores in the evaluation set to obtain realized false
-positive rates near 20\%. Across five attack categories, FieldGraph-Net achieves a
+positive rates near 20\%. Across five attack categories, the OOD structural branch achieves a
 mean F1 of 0.5076, compared with 0.4323 for maximum softmax probability, the
 strongest baseline by mean F1. Baseline results are averaged over five seeds;
-FieldGraph-Net contributes one operating point per category. The framework extends
-analysis coverage beyond the attack classifier's protocol domain and achieves the
-highest mean F1 among the evaluated methods.
+the structural branch contributes one operating point per category. The framework extends
+analysis coverage beyond the attack classifier's protocol domain; its structural
+branch achieves the highest mean F1 among the evaluated methods.
 \end{abstract}
 
 \begin{keywords}
@@ -111,7 +111,7 @@ Our contributions are summarized as follows:
   this stage.
   \item We introduce routing by protocol domain to combine attack classification
   with structural assessment of flows outside the classifier's training domain.
-  \item We evaluate the system on CIC IoT 2023 and CICIDS2017. The comparison across
+  \item We evaluate the system on CIC IoT 2023 and CICIDS2017. The structural-branch comparison across
   five attack categories yields a mean F1 of 0.5076, and the ablation characterizes
   the contributions of classifier scores, structural scores and the full rule.
 \end{itemize}
@@ -221,11 +221,12 @@ to twelve protocol classes using protocol labels for supervision.
 \subsection{Domain Routing and Decision Fusion}
 \label{ssec:fusion}
 
-\textbf{Domain Router.} The router compares the identified protocol with those
-represented in the attack classifier's training domain. A port lookup provides a
-fallback when a protocol identity is unavailable. Domain membership and protocol
-recognition are distinct: a recognized protocol can still lie outside the attack
-classifier's training domain.
+\textbf{Domain Router.} The router assigns training-domain membership from the
+predicted protocol name, without consulting ports. When the identity is unavailable,
+a port lookup later supplies a recognition fallback for the decision rule; it does
+not change the router's domain assignment. Domain membership and protocol recognition
+are distinct: a recognized protocol can still lie outside the attack classifier's
+training domain.
 
 \textbf{Out-of-Distribution Exclusion.} The router sends OOD flows to structural
 analysis. The attack classifier supplies scores only for flows routed to its domain.
@@ -296,7 +297,7 @@ minimize the absolute difference between the realized false positive rate (FPR)
 and 20\%, with ties resolved by the smaller threshold. We report recall, F1 and
 FPR; the score AUC is the area under the receiver operating characteristic curve.
 Table~\ref{tab:comparison} averages baseline results across five seeds and reports
-one operating point per attack category for FieldGraph-Net. Evaluation uses Python
+one operating point per attack category for the OOD structural branch. Evaluation uses Python
 3.10.11, PyTorch 2.13.0, PyTorch Geometric 2.8.0, scikit-learn 1.7.2, NumPy 2.2.6
 and SciPy 1.15.3 on an Intel Core i9-13980HX running Windows 11. Detector retraining
 uses an NVIDIA RTX 4060 with PyTorch 2.13.0+cu126; evaluation runs on the CPU.
@@ -352,7 +353,7 @@ their aggregate activity is malicious. This property motivates complementary
 features for traffic volume and temporal behavior. The window comparisons identify settings for examining these complementary signals.
 
 \textbf{Comparative Experiment.} Table~\ref{tab:comparison} reports F1 for five attack
-categories. FieldGraph-Net achieved the highest reported mean F1, 0.5076, compared
+categories. The structural branch achieved the highest reported mean F1, 0.5076, compared
 with 0.4323 for MSP, 0.3710 for the raw detector and 0.3287 for ODIN. The difference
 from MSP was 0.0753. These means summarize performance across the listed attack
 categories at the reported operating points.
@@ -360,8 +361,8 @@ categories at the reported operating points.
 \begin{table}[h]
 	\centering
 	\caption{F1 across five attack categories at a realized FPR near 20\%. Thresholds
-		use benign scores. Baseline entries average five seeds; Ours uses one operating point
-		per category.}
+		use benign scores. Baseline entries average five seeds; Ours is the OOD structural
+		branch at one operating point per category.}
 	\label{tab:comparison}
 	\footnotesize
 	\setlength{\tabcolsep}{3.2pt}
@@ -380,18 +381,22 @@ categories at the reported operating points.
 	\end{tabular}
 \end{table}
 
-Relative to the strongest baseline in each category, FieldGraph-Net improved F1 by
+For Ours, the five OOD categories are predefined by capture; each score is the
+minimum distance to a centroid fitted on in-domain structural fingerprints, not
+the full routing and decision rule of Eq.~\ref{eq:fusion}.
+
+Relative to the strongest baseline in each category, the structural branch improved F1 by
 0.1724 on Mirai and 0.1211 on dictionary brute force. Its F1 on SQL injection was
 0.4226, exceeding the strongest baseline by 0.0090. On DNS spoofing, it trailed
 Mahalanobis scoring by 0.0598; on reconnaissance port scanning, it trailed MSP by
-0.1636. The reported point estimates therefore favor FieldGraph-Net in three
+0.1636. The reported point estimates therefore favor the structural branch in three
 categories and a baseline in two. 
 
 Threshold selection uses benign observations from the evaluation set to match the
 reported FPR target. The comparison therefore characterizes performance at that
 operating point. An independently calibrated deployment threshold can produce a
 different realized FPR. The baseline entries average five seeds, while each
-FieldGraph-Net entry represents one operating point for the corresponding category.
+structural-branch entry represents one operating point for the corresponding category.
 
 \textbf{Ablation Experiment.} Table~\ref{tab:ablation} reports the classifier
 probability (A1), structural cluster score (A3), full decision rule (A4), and a fixed
@@ -437,7 +442,7 @@ FieldGraph-Net combines protocol identification, domain routing and structural
 clustering for network intrusion detection. Protocol supervision provides an
 identity signal without attack labels for the structural front end. Routing then
 connects attack classification with a separate assessment of unfamiliar traffic.
-Across five CIC IoT 2023 attack categories, the system achieved mean F1 of 0.5076,
+Across five CIC IoT 2023 attack categories, the OOD structural branch achieved mean F1 of 0.5076,
 compared with 0.4323 for MSP. The full rule recorded recall of 0.3696 and F1 of
 0.5252 at an FPR of 0.206. CICIDS2017 evaluation showed that alert concentration
 varies across attack windows, motivating complementary analysis of traffic volume
