@@ -53,6 +53,6 @@ Raw CIC datasets and per-flow traces are **not included**. Selected aggregate JS
 
 ## Manuscript
 
-`paper/lunwenV2.tex` preserves the requested rollback state. Build from `paper/` with `pdflatex lunwenV2.tex`, `bibtex lunwenV2`, then `pdflatex lunwenV2.tex` twice. The Open Science URL in the paper still contains the placeholder `XXXXX`; it must be updated before public submission. The supplied PDF is for inspection, not a camera-ready compliance claim.
+`paper/lunwenV2.tex` preserves the requested rollback state. Build from `paper/` with `pdflatex lunwenV2.tex`, `bibtex lunwenV2`, then `pdflatex lunwenV2.tex` twice. The Open Science section links to the anonymized artifact. The supplied PDF is for inspection, not a camera-ready compliance claim.
 
 No software license is granted by this export. Obtain permission from the rights holders before adding an explicit license; third-party dataset and model terms are separate.
