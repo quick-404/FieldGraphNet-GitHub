@@ -1,0 +1,2865 @@
+{
+  "_meta": {
+    "purpose": "re-evaluate the A1..A4 fusion ablation at a MATCHED realised FPR (target 0.20), because the committed ablation table compares variants at four different FPRs and F1 is not comparable across operating points",
+    "generated": "2026-09-22T16:34:07",
+    "command": "python.exe experiments\\ablation_controlled_fpr.py",
+    "git_head": "4c5a34f688bd63cd3c74b2a7071a3825799801ec",
+    "cwd": "D:\\网络流量分析项目\\nemesys-gnn4id",
+    "target_fpr": 0.2,
+    "threshold_rule": "sweep theta over the ascending union of the distinct BENIGN scores of every thresholdable variant (plus one endpoint just above the largest benign score); detection uses a strict \">\"; the reported operating point is the candidate whose REALISED FPR is closest to 0.20, ties resolving to the smallest theta (the tie-aware rule of eval_ood_method_comparison.py:threshold_at_target_fpr). The candidate set depends on benign scores only, never on attack labels.",
+    "thresholdable_variants": {
+      "A1": "alert iff gnn_prob_attack > theta, where gnn_prob_attack = 1 - P(Benign) from the GNN4ID softmax (analyzer._predict_with_model -> prob_benign). Flows the GNN never scored (gnn_skipped OOD flows) have no score and never alert, matching A1's committed definition (their class_id default is 0).",
+      "A3": "alert iff cluster_score > theta, where cluster_score = outlier_count / max(size, 1) of the flow's matched structural cluster (0.0 when no cluster matched; UNROUNDED, while the cluster record itself stores a 3-decimal outlier_ratio)",
+      "A4": "the actual fusion rule replayed with cluster_high := (cluster_score > theta) and is_attack / in_domain / known_proto unchanged; alert iff the resulting status is in FUSION_ALERT_STATUSES"
+    },
+    "fixed_rule_variant": {
+      "A2": "no threshold exists: every OOD flow is flagged unconditionally, so A2 has exactly one operating point (reported as variants.A2, kind=fixed_rule_no_threshold)"
+    },
+    "pipeline_definitions": {
+      "source": "experiments/run_ablation_fusion.py (imported, not reimplemented)",
+      "A1": "A1 = 0 if (r.get(\"_gnn_original_class_id\", r[\"class_id\"]) == 0) else 1",
+      "A2": "A2 = 1 if r.get(\"ood\") else A1",
+      "A3": "A3 = 1 if cluster_is_high_risk(matched cluster) else 0",
+      "A4": "A4 = 1 if fusion_decision[\"status\"] in FUSION_ALERT_STATUSES else 0"
+    },
+    "cluster_score_definition": "max(outlier_count / max(size, 1), mean_distance if the matched cluster carries a high-risk indicator flag AND its cohesion is loose/moderate else 0.0); 0.0 when no cluster matched",
+    "pipeline_cluster_threshold_on_cluster_score": 0.0,
+    "pipeline_cluster_threshold_note": "_cluster_is_high_risk is a disjunction of two independent pieces of evidence: (i) outlier_count > 0, and (ii) a high-risk indicator flag with cohesion in loose/moderate (which fires with outlier_count == 0). Its second outlier branch (outlier_ratio > 0.15) can never decide, because outlier_count > 0 has already returned True. cluster_score is the max of the two branch strengths, which is exactly why the pipeline's own boolean equals cluster_score > 0.0 -- verified per flow in verification.cluster_high_vs_score_at_pipeline_threshold.",
+    "n_chunks": 70,
+    "n_flows": 3233,
+    "n_benign_flows": 500,
+    "n_attack_flows": 2733,
+    "flow_dump_file": "eval_results\\fusion_comparison\\ablation_controlled_fpr_per_flow.json",
+    "per_flow_fields": [
+      "attack_label",
+      "attack_label_name",
+      "chunk",
+      "class_id",
+      "cluster_branch_outlier",
+      "cluster_branch_structural",
+      "cluster_cohesion",
+      "cluster_high",
+      "cluster_id",
+      "cluster_indicators",
+      "cluster_matched",
+      "cluster_mean_distance",
+      "cluster_outlier_count",
+      "cluster_outlier_ratio",
+      "cluster_score",
+      "cluster_size",
+      "cluster_structural_score",
+      "flow_index",
+      "gnn_prob_attack",
+      "gnn_skipped",
+      "in_domain",
+      "is_attack",
+      "known_proto",
+      "ood",
+      "orig_class_id",
+      "prob_benign",
+      "source",
+      "status",
+      "y_true"
+    ],
+    "feature_backend_requested": "scapy",
+    "feature_backend_warning": "the committed ablation table is a scapy-backend result (3233 flows). This environment silently runs nfstream instead when nothing pins the backend, and nfstream extracts 3500 flows on this corpus and disagrees with the committed chunk metrics on ALL 70 chunks (measured), so a run without NEMESYS_FEATURE_BACKEND=scapy is NOT comparable with the paper's table. The preflight chunk and committed_ablation_comparison below are the guards for that.",
+    "limitations": [
+      "A1(theta) is a threshold on 1 - P(Benign), which is NOT the same decision rule as the committed A1 (argmax != Benign): a flow whose benign probability is 0.125 with a tied argmax can be alerted by A1(0.5) while the committed A1 calls it benign. A1's committed operating point is therefore reported separately under pipeline_definitions_operating_point.",
+      "_cluster_is_high_risk is NOT a threshold on one raw cluster field: it has an outlier branch (outlier_count > 0) and a structural branch (a high-risk indicator flag with cohesion loose/moderate, which fires with outlier_count == 0 -- see verification.cluster_branch_incidence.n_decided_by_structural_branch_only). cluster_score therefore has to be the max of the two branch strengths for \"cluster_score > 0\" to equal the pipeline's own boolean; a score built from the outlier branch alone is a DIFFERENT (weaker) detector, evaluated separately under alternate_cluster_score. The two components live on different scales (outlier fraction vs mean centroid distance), so theta > 0 cannot be read as a tighter outlier-ratio cutoff on top of the unchanged pipeline rule -- it is a monotonically stricter version of the whole cluster rule.",
+      "the reference negatives for the threshold are the flows of the Benign-labelled chunks (the only benign source in the corpus), the same pool the committed ablation uses for its FPR.",
+      "AUC (score_auc) is reported only for A1 and A3, the two variants with a per-flow score; A4 is a rule whose threshold moves a cluster-level boolean, so no per-flow ROC score is defined for it -- its (FPR, recall) curve is reported instead.",
+      "the realised FPR is always fp / (fp + tn) over ALL 500 benign flows (the flows of the Benign-labelled chunks), the same denominator the committed ablation uses, so the 374 benign flows the domain router sent to the structural arm -- which the GNN never scores -- count as true negatives for A1 rather than being dropped. A1 is therefore capped by construction: it can never score the 1875 OOD-skipped attack flows either, so its recall ceiling on this corpus is 858/2733 = 0.3139."
+    ],
+    "feature_backend_used": "scapy",
+    "feature_backend_reason": "forced by NEMESYS_FEATURE_BACKEND=scapy",
+    "feature_backend_per_chunk_counts": {
+      "scapy": 70
+    },
+    "feature_backend_consistent": true,
+    "feature_backend_note": "feature_backend_used is read from gnn4id.analyzer.last_feature_backend() after extraction; the nfstream and scapy extractors are NOT equivalent (~49% cell agreement, different flow counts), so these numbers must never be mixed with a run on another backend.",
+    "committed_ablation_comparison": {
+      "committed_file": "eval_results\\fusion_comparison\\ablation_results.json",
+      "committed_total_flows": 3233,
+      "run_total_flows": 3233,
+      "n_chunks_compared": 70,
+      "n_chunks_identical": 70,
+      "first_mismatching_chunks": [],
+      "reproduces_committed_table": true,
+      "note": "the committed table is a scapy-backend result (3233 flows on this corpus; nfstream extracts 3500 and disagrees on every chunk), so a run in another regime is not comparable with it and this flag is the guard."
+    },
+    "regime_preflight": {
+      "chunk": "BenignTraffic_chunk1.pcap",
+      "n_flows": 50,
+      "committed_n_flows": 50,
+      "feature_backend_used": "scapy",
+      "feature_backend_reason": "forced by NEMESYS_FEATURE_BACKEND=scapy",
+      "this_run": {
+        "gnn_raw": {
+          "total": 50,
+          "tp": 0,
+          "fp": 6,
+          "fn": 0,
+          "tn": 44,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.12
+        },
+        "domain_routing_only": {
+          "total": 50,
+          "tp": 0,
+          "fp": 44,
+          "fn": 0,
+          "tn": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.88
+        },
+        "clustering_only": {
+          "total": 50,
+          "tp": 0,
+          "fp": 30,
+          "fn": 0,
+          "tn": 20,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.6
+        },
+        "fusion_alert": {
+          "total": 50,
+          "tp": 0,
+          "fp": 13,
+          "fn": 0,
+          "tn": 37,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.26
+        }
+      },
+      "committed": {
+        "a1": {
+          "total": 50,
+          "tp": 0,
+          "fp": 6,
+          "fn": 0,
+          "tn": 44,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.12
+        },
+        "a2": {
+          "total": 50,
+          "tp": 0,
+          "fp": 44,
+          "fn": 0,
+          "tn": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.88
+        },
+        "a3": {
+          "total": 50,
+          "tp": 0,
+          "fp": 30,
+          "fn": 0,
+          "tn": 20,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.6
+        },
+        "a4": {
+          "total": 50,
+          "tp": 0,
+          "fp": 13,
+          "fn": 0,
+          "tn": 37,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.26
+        }
+      },
+      "matches_committed": {
+        "A1": true,
+        "A2": true,
+        "A3": true,
+        "A4": true
+      },
+      "ok": true
+    }
+  },
+  "pipeline_run": {
+    "config": {
+      "total_chunks": 70,
+      "total_flows": 3233
+    },
+    "ablation": {
+      "gnn_raw": {
+        "total": 3233,
+        "tp": 576,
+        "fp": 60,
+        "fn": 2157,
+        "tn": 440,
+        "precision": 0.9057,
+        "recall": 0.2108,
+        "f1": 0.3419,
+        "fpr": 0.12
+      },
+      "domain_routing_only": {
+        "total": 3233,
+        "tp": 2451,
+        "fp": 434,
+        "fn": 282,
+        "tn": 66,
+        "precision": 0.8496,
+        "recall": 0.8968,
+        "f1": 0.8726,
+        "fpr": 0.868
+      },
+      "clustering_only": {
+        "total": 3233,
+        "tp": 1944,
+        "fp": 332,
+        "fn": 789,
+        "tn": 168,
+        "precision": 0.8541,
+        "recall": 0.7113,
+        "f1": 0.7762,
+        "fpr": 0.664
+      },
+      "fusion_alert": {
+        "total": 3233,
+        "tp": 1357,
+        "fp": 182,
+        "fn": 1376,
+        "tn": 318,
+        "precision": 0.8817,
+        "recall": 0.4965,
+        "f1": 0.6353,
+        "fpr": 0.364
+      }
+    },
+    "elapsed_seconds": 475.7,
+    "chunk_subset": null
+  },
+  "pipeline_definitions_operating_point": {
+    "gnn_raw": {
+      "total": 3233,
+      "tp": 576,
+      "fp": 60,
+      "fn": 2157,
+      "tn": 440,
+      "precision": 0.9057,
+      "recall": 0.2108,
+      "f1": 0.3419,
+      "fpr": 0.12
+    },
+    "domain_routing_only": {
+      "total": 3233,
+      "tp": 2451,
+      "fp": 434,
+      "fn": 282,
+      "tn": 66,
+      "precision": 0.8496,
+      "recall": 0.8968,
+      "f1": 0.8726,
+      "fpr": 0.868
+    },
+    "clustering_only": {
+      "total": 3233,
+      "tp": 1944,
+      "fp": 332,
+      "fn": 789,
+      "tn": 168,
+      "precision": 0.8541,
+      "recall": 0.7113,
+      "f1": 0.7762,
+      "fpr": 0.664
+    },
+    "fusion_alert": {
+      "total": 3233,
+      "tp": 1357,
+      "fp": 182,
+      "fn": 1376,
+      "tn": 318,
+      "precision": 0.8817,
+      "recall": 0.4965,
+      "f1": 0.6353,
+      "fpr": 0.364
+    }
+  },
+  "pipeline_definitions_match_run": {
+    "A1": true,
+    "A2": true,
+    "A3": true,
+    "A4": true
+  },
+  "verification": {
+    "n_flows": 3233,
+    "n_flows_without_fusion_decision": 0,
+    "a4_branch_replay_vs_pipeline": {
+      "comparison": "replay_a4_status(is_attack, in_domain, known_proto, cluster_high) vs pipeline fusion_decision.status, per flow",
+      "n_compared": 3233,
+      "n_mismatch": 0,
+      "mismatches": [],
+      "per_chunk": [
+        {
+          "chunk": "BenignTraffic_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk2.pcap",
+          "n_compared": 12,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk3.pcap",
+          "n_compared": 20,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk4.pcap",
+          "n_compared": 19,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk5.pcap",
+          "n_compared": 15,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk6.pcap",
+          "n_compared": 21,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk7.pcap",
+          "n_compared": 21,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk8.pcap",
+          "n_compared": 24,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk9.pcap",
+          "n_compared": 24,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk10.pcap",
+          "n_compared": 27,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        }
+      ]
+    },
+    "a4_replay_at_pipeline_cluster_threshold": {
+      "comparison": "replay_a4_status(is_attack, in_domain, known_proto, cluster_score > 0.0) vs pipeline fusion_decision.status, per flow",
+      "n_compared": 3233,
+      "n_mismatch": 0,
+      "mismatches": [],
+      "per_chunk": [
+        {
+          "chunk": "BenignTraffic_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "BenignTraffic_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk2.pcap",
+          "n_compared": 12,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk3.pcap",
+          "n_compared": 20,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk4.pcap",
+          "n_compared": 19,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk5.pcap",
+          "n_compared": 15,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk6.pcap",
+          "n_compared": 21,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk7.pcap",
+          "n_compared": 21,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk8.pcap",
+          "n_compared": 24,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk9.pcap",
+          "n_compared": 24,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk10.pcap",
+          "n_compared": 27,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "SqlInjection_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk1.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk2.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk3.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk4.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk5.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk6.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk7.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk8.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk9.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        },
+        {
+          "chunk": "Recon-PortScan_chunk10.pcap",
+          "n_compared": 50,
+          "n_mismatch": 0
+        }
+      ]
+    },
+    "cluster_high_vs_score_at_pipeline_threshold": {
+      "comparison": "(cluster_score > 0.0) vs pipeline _cluster_is_high_risk(cluster_info), per flow",
+      "n_mismatch": 0
+    },
+    "cluster_branch_incidence": {
+      "n_cluster_high": 2276,
+      "n_decided_by_outlier_branch": 1778,
+      "n_with_structural_branch_evidence": 848,
+      "n_decided_by_structural_branch_only": 0,
+      "note": "n_decided_by_structural_branch_only is the number of flows whose pipeline cluster_high is True while cluster_score == 0, i.e. flows a single-theta cluster_score replay cannot reproduce. It must be 0 for the theta_int replay to be exact."
+    },
+    "run_ablation_fusion_replica_vs_pipeline": {
+      "comparison": "run_ablation_fusion.cluster_is_high_risk(cluster_info rebuilt from the dump) vs the pipeline's own _cluster_is_high_risk",
+      "n_mismatch": 0
+    }
+  },
+  "variants": {
+    "A1": {
+      "threshold": 3.57628e-07,
+      "realised_fpr": 0.2,
+      "fpr_gap_to_target": 0.0,
+      "operating_point": {
+        "total": 3233,
+        "tp": 754,
+        "fp": 100,
+        "fn": 1979,
+        "tn": 400,
+        "precision": 0.8829,
+        "recall": 0.2759,
+        "f1": 0.4204,
+        "fpr": 0.2
+      },
+      "curve": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.014,
+          0.015368
+        ],
+        [
+          0.016,
+          0.015734
+        ],
+        [
+          0.018,
+          0.017929
+        ],
+        [
+          0.02,
+          0.024515
+        ],
+        [
+          0.022,
+          0.025247
+        ],
+        [
+          0.024,
+          0.025613
+        ],
+        [
+          0.026,
+          0.031101
+        ],
+        [
+          0.028,
+          0.048299
+        ],
+        [
+          0.03,
+          0.062569
+        ],
+        [
+          0.032,
+          0.064032
+        ],
+        [
+          0.034,
+          0.065496
+        ],
+        [
+          0.036,
+          0.068789
+        ],
+        [
+          0.038,
+          0.076107
+        ],
+        [
+          0.04,
+          0.081961
+        ],
+        [
+          0.042,
+          0.083059
+        ],
+        [
+          0.044,
+          0.084523
+        ],
+        [
+          0.046,
+          0.086718
+        ],
+        [
+          0.048,
+          0.092938
+        ],
+        [
+          0.05,
+          0.098427
+        ],
+        [
+          0.052,
+          0.109038
+        ],
+        [
+          0.054,
+          0.111233
+        ],
+        [
+          0.056,
+          0.111965
+        ],
+        [
+          0.058,
+          0.119649
+        ],
+        [
+          0.06,
+          0.121844
+        ],
+        [
+          0.062,
+          0.12404
+        ],
+        [
+          0.064,
+          0.126235
+        ],
+        [
+          0.066,
+          0.126235
+        ],
+        [
+          0.068,
+          0.126601
+        ],
+        [
+          0.07,
+          0.126601
+        ],
+        [
+          0.072,
+          0.132455
+        ],
+        [
+          0.074,
+          0.133187
+        ],
+        [
+          0.076,
+          0.133919
+        ],
+        [
+          0.078,
+          0.135016
+        ],
+        [
+          0.08,
+          0.143066
+        ],
+        [
+          0.082,
+          0.150384
+        ],
+        [
+          0.084,
+          0.153311
+        ],
+        [
+          0.086,
+          0.155141
+        ],
+        [
+          0.088,
+          0.156604
+        ],
+        [
+          0.09,
+          0.158068
+        ],
+        [
+          0.092,
+          0.158434
+        ],
+        [
+          0.094,
+          0.159166
+        ],
+        [
+          0.096,
+          0.161727
+        ],
+        [
+          0.098,
+          0.168313
+        ],
+        [
+          0.1,
+          0.178924
+        ],
+        [
+          0.102,
+          0.180022
+        ],
+        [
+          0.104,
+          0.180388
+        ],
+        [
+          0.106,
+          0.181486
+        ],
+        [
+          0.108,
+          0.184047
+        ],
+        [
+          0.11,
+          0.186242
+        ],
+        [
+          0.112,
+          0.190999
+        ],
+        [
+          0.114,
+          0.191731
+        ],
+        [
+          0.116,
+          0.192462
+        ],
+        [
+          0.118,
+          0.197219
+        ],
+        [
+          0.12,
+          0.213685
+        ],
+        [
+          0.122,
+          0.213685
+        ],
+        [
+          0.124,
+          0.21405
+        ],
+        [
+          0.126,
+          0.216246
+        ],
+        [
+          0.128,
+          0.217709
+        ],
+        [
+          0.13,
+          0.227589
+        ],
+        [
+          0.132,
+          0.231248
+        ],
+        [
+          0.134,
+          0.232711
+        ],
+        [
+          0.136,
+          0.233809
+        ],
+        [
+          0.138,
+          0.238932
+        ],
+        [
+          0.14,
+          0.245152
+        ],
+        [
+          0.142,
+          0.247713
+        ],
+        [
+          0.144,
+          0.247713
+        ],
+        [
+          0.146,
+          0.248079
+        ],
+        [
+          0.148,
+          0.248445
+        ],
+        [
+          0.15,
+          0.251738
+        ],
+        [
+          0.152,
+          0.253568
+        ],
+        [
+          0.154,
+          0.255031
+        ],
+        [
+          0.156,
+          0.255763
+        ],
+        [
+          0.158,
+          0.256129
+        ],
+        [
+          0.16,
+          0.258324
+        ],
+        [
+          0.162,
+          0.260885
+        ],
+        [
+          0.164,
+          0.261617
+        ],
+        [
+          0.166,
+          0.261617
+        ],
+        [
+          0.168,
+          0.263081
+        ],
+        [
+          0.17,
+          0.263813
+        ],
+        [
+          0.172,
+          0.263813
+        ],
+        [
+          0.174,
+          0.26491
+        ],
+        [
+          0.176,
+          0.265276
+        ],
+        [
+          0.178,
+          0.265642
+        ],
+        [
+          0.18,
+          0.267106
+        ],
+        [
+          0.182,
+          0.267472
+        ],
+        [
+          0.184,
+          0.267838
+        ],
+        [
+          0.186,
+          0.269301
+        ],
+        [
+          0.188,
+          0.269301
+        ],
+        [
+          0.19,
+          0.269301
+        ],
+        [
+          0.192,
+          0.270765
+        ],
+        [
+          0.194,
+          0.271497
+        ],
+        [
+          0.196,
+          0.271497
+        ],
+        [
+          0.198,
+          0.27296
+        ],
+        [
+          0.2,
+          0.275887
+        ],
+        [
+          0.204,
+          0.278449
+        ],
+        [
+          0.212,
+          0.28101
+        ]
+      ],
+      "n_curve_points": 97,
+      "score_auc": 0.6063,
+      "score_auc_n_flows": 984,
+      "score_auc_excluded_no_score": 2249,
+      "repo_helper_cross_check": {
+        "helper": "the copied eval_ood_method_comparison.threshold_at_target_fpr, run on this variant's own benign scores (one entry per benign flow, -inf where the GNN scored nothing)",
+        "threshold": 3.57628e-07,
+        "threshold_is_minus_infinity": false,
+        "realised_fpr": 0.2,
+        "recall": 0.275887,
+        "same_realised_fpr_as_selected": true,
+        "agrees_on_operating_point": true,
+        "note": "the sweep grid is the union of BOTH thresholdable scores' distinct benign values, i.e. a superset of each variant's own candidate set, so a variant can land closer to the target FPR than this per-variant-only helper can (the union grid is the same for every variant, so it privileges none of them). A divergence here means the union grid reached a closer FPR. A divergence does NOT mean the helper is wrong: both use the same strict \">\" rule and the same full-benign-pool FPR."
+      },
+      "score": "gnn_prob_attack"
+    },
+    "A3": {
+      "threshold": 0.2141,
+      "realised_fpr": 0.196,
+      "fpr_gap_to_target": 0.004,
+      "operating_point": {
+        "total": 3233,
+        "tp": 650,
+        "fp": 98,
+        "fn": 2083,
+        "tn": 402,
+        "precision": 0.869,
+        "recall": 0.2378,
+        "f1": 0.3735,
+        "fpr": 0.196
+      },
+      "curve": [
+        [
+          0.0,
+          0.011343
+        ],
+        [
+          0.004,
+          0.017929
+        ],
+        [
+          0.006,
+          0.020124
+        ],
+        [
+          0.014,
+          0.021222
+        ],
+        [
+          0.016,
+          0.026345
+        ],
+        [
+          0.026,
+          0.034029
+        ],
+        [
+          0.034,
+          0.040981
+        ],
+        [
+          0.036,
+          0.046835
+        ],
+        [
+          0.044,
+          0.047567
+        ],
+        [
+          0.046,
+          0.051226
+        ],
+        [
+          0.052,
+          0.053421
+        ],
+        [
+          0.058,
+          0.061837
+        ],
+        [
+          0.066,
+          0.074643
+        ],
+        [
+          0.074,
+          0.079766
+        ],
+        [
+          0.076,
+          0.079766
+        ],
+        [
+          0.078,
+          0.087816
+        ],
+        [
+          0.088,
+          0.090743
+        ],
+        [
+          0.092,
+          0.102086
+        ],
+        [
+          0.094,
+          0.117819
+        ],
+        [
+          0.096,
+          0.119649
+        ],
+        [
+          0.104,
+          0.122942
+        ],
+        [
+          0.106,
+          0.127333
+        ],
+        [
+          0.118,
+          0.135016
+        ],
+        [
+          0.12,
+          0.135382
+        ],
+        [
+          0.124,
+          0.137578
+        ],
+        [
+          0.142,
+          0.139773
+        ],
+        [
+          0.148,
+          0.141969
+        ],
+        [
+          0.152,
+          0.15697
+        ],
+        [
+          0.154,
+          0.15697
+        ],
+        [
+          0.16,
+          0.173802
+        ],
+        [
+          0.162,
+          0.176729
+        ],
+        [
+          0.166,
+          0.186974
+        ],
+        [
+          0.168,
+          0.187706
+        ],
+        [
+          0.174,
+          0.201976
+        ],
+        [
+          0.182,
+          0.208928
+        ],
+        [
+          0.186,
+          0.229052
+        ],
+        [
+          0.192,
+          0.233077
+        ],
+        [
+          0.196,
+          0.237834
+        ],
+        [
+          0.214,
+          0.2382
+        ],
+        [
+          0.218,
+          0.245884
+        ],
+        [
+          0.22,
+          0.248445
+        ],
+        [
+          0.224,
+          0.248811
+        ],
+        [
+          0.226,
+          0.249177
+        ],
+        [
+          0.232,
+          0.249177
+        ],
+        [
+          0.234,
+          0.267106
+        ],
+        [
+          0.236,
+          0.269667
+        ],
+        [
+          0.264,
+          0.275887
+        ],
+        [
+          0.276,
+          0.275887
+        ],
+        [
+          0.278,
+          0.277351
+        ],
+        [
+          0.284,
+          0.285035
+        ],
+        [
+          0.29,
+          0.285035
+        ],
+        [
+          0.296,
+          0.29345
+        ],
+        [
+          0.306,
+          0.299671
+        ],
+        [
+          0.314,
+          0.303696
+        ],
+        [
+          0.318,
+          0.308818
+        ],
+        [
+          0.324,
+          0.308818
+        ],
+        [
+          0.332,
+          0.310648
+        ],
+        [
+          0.334,
+          0.325649
+        ],
+        [
+          0.346,
+          0.33992
+        ],
+        [
+          0.35,
+          0.349433
+        ],
+        [
+          0.356,
+          0.350531
+        ],
+        [
+          0.368,
+          0.351262
+        ],
+        [
+          0.37,
+          0.354921
+        ],
+        [
+          0.386,
+          0.362605
+        ],
+        [
+          0.408,
+          0.394438
+        ],
+        [
+          0.412,
+          0.398463
+        ],
+        [
+          0.418,
+          0.405049
+        ],
+        [
+          0.438,
+          0.405049
+        ],
+        [
+          0.454,
+          0.413099
+        ],
+        [
+          0.456,
+          0.421881
+        ],
+        [
+          0.478,
+          0.422247
+        ],
+        [
+          0.48,
+          0.441639
+        ],
+        [
+          0.5,
+          0.448225
+        ],
+        [
+          0.502,
+          0.452616
+        ],
+        [
+          0.52,
+          0.466154
+        ],
+        [
+          0.522,
+          0.466154
+        ],
+        [
+          0.526,
+          0.466886
+        ],
+        [
+          0.552,
+          0.500183
+        ],
+        [
+          0.558,
+          0.500183
+        ],
+        [
+          0.576,
+          0.506769
+        ],
+        [
+          0.584,
+          0.541529
+        ],
+        [
+          0.6,
+          0.56019
+        ],
+        [
+          0.602,
+          0.56824
+        ],
+        [
+          0.62,
+          0.57446
+        ],
+        [
+          0.636,
+          0.605196
+        ],
+        [
+          0.64,
+          0.613246
+        ],
+        [
+          0.66,
+          0.659715
+        ],
+        [
+          0.664,
+          0.711306
+        ]
+      ],
+      "n_curve_points": 88,
+      "score_auc": 0.4973,
+      "repo_helper_cross_check": {
+        "helper": "the copied eval_ood_method_comparison.threshold_at_target_fpr, run on this variant's own benign scores (one entry per benign flow, -inf where the GNN scored nothing)",
+        "threshold": 0.2141,
+        "threshold_is_minus_infinity": false,
+        "realised_fpr": 0.196,
+        "recall": 0.237834,
+        "same_realised_fpr_as_selected": true,
+        "agrees_on_operating_point": true,
+        "note": "the sweep grid is the union of BOTH thresholdable scores' distinct benign values, i.e. a superset of each variant's own candidate set, so a variant can land closer to the target FPR than this per-variant-only helper can (the union grid is the same for every variant, so it privileges none of them). A divergence here means the union grid reached a closer FPR. A divergence does NOT mean the helper is wrong: both use the same strict \">\" rule and the same full-benign-pool FPR."
+      },
+      "score": "cluster_score"
+    },
+    "A4": {
+      "threshold": 0.083333333333,
+      "realised_fpr": 0.206,
+      "fpr_gap_to_target": 0.006,
+      "operating_point": {
+        "total": 3233,
+        "tp": 1010,
+        "fp": 103,
+        "fn": 1723,
+        "tn": 397,
+        "precision": 0.9075,
+        "recall": 0.3696,
+        "f1": 0.5252,
+        "fpr": 0.206
+      },
+      "curve": [
+        [
+          0.12,
+          0.218807
+        ],
+        [
+          0.122,
+          0.221368
+        ],
+        [
+          0.124,
+          0.223564
+        ],
+        [
+          0.126,
+          0.240761
+        ],
+        [
+          0.132,
+          0.250274
+        ],
+        [
+          0.134,
+          0.255031
+        ],
+        [
+          0.138,
+          0.257592
+        ],
+        [
+          0.14,
+          0.264179
+        ],
+        [
+          0.142,
+          0.290523
+        ],
+        [
+          0.146,
+          0.292719
+        ],
+        [
+          0.152,
+          0.300402
+        ],
+        [
+          0.154,
+          0.300402
+        ],
+        [
+          0.16,
+          0.31577
+        ],
+        [
+          0.162,
+          0.343578
+        ],
+        [
+          0.168,
+          0.359312
+        ],
+        [
+          0.17,
+          0.359678
+        ],
+        [
+          0.176,
+          0.359678
+        ],
+        [
+          0.178,
+          0.368825
+        ],
+        [
+          0.206,
+          0.369557
+        ],
+        [
+          0.21,
+          0.37468
+        ],
+        [
+          0.216,
+          0.380168
+        ],
+        [
+          0.22,
+          0.400293
+        ],
+        [
+          0.236,
+          0.401756
+        ],
+        [
+          0.24,
+          0.410172
+        ],
+        [
+          0.244,
+          0.416026
+        ],
+        [
+          0.246,
+          0.421515
+        ],
+        [
+          0.252,
+          0.421881
+        ],
+        [
+          0.254,
+          0.426271
+        ],
+        [
+          0.262,
+          0.427735
+        ],
+        [
+          0.264,
+          0.430662
+        ],
+        [
+          0.282,
+          0.432858
+        ],
+        [
+          0.308,
+          0.471277
+        ],
+        [
+          0.324,
+          0.473472
+        ],
+        [
+          0.34,
+          0.481888
+        ],
+        [
+          0.344,
+          0.481888
+        ],
+        [
+          0.364,
+          0.496524
+        ]
+      ],
+      "n_curve_points": 36,
+      "score": "cluster_score (threshold on cluster_high)"
+    },
+    "_sweep": {
+      "n_theta_candidates": 185,
+      "theta_min": 0.0,
+      "theta_max": 1.000000000001,
+      "n_theta_from_A1_score": 97,
+      "n_theta_from_A3_score": 88,
+      "n_flows_without_gnn_score": 2249,
+      "n_benign_flows_without_gnn_score": 374
+    },
+    "A2": {
+      "kind": "fixed_rule_no_threshold",
+      "rule": "A2 = 1 if ood else (0 if _gnn_original_class_id == 0 else 1) (experiments/run_ablation_fusion.py) -- every OOD flow is flagged unconditionally, so there is no threshold to sweep and exactly one operating point",
+      "threshold": null,
+      "realised_fpr": 0.868,
+      "operating_point": {
+        "total": 3233,
+        "tp": 2451,
+        "fp": 434,
+        "fn": 282,
+        "tn": 66,
+        "precision": 0.8496,
+        "recall": 0.8968,
+        "f1": 0.8726,
+        "fpr": 0.868
+      },
+      "curve": [
+        [
+          0.868,
+          0.8968
+        ]
+      ]
+    }
+  },
+  "alternate_cluster_score": {
+    "definition": "outlier_count / max(size, 1) only (structural branch dropped)",
+    "why_it_is_not_A4": "cluster_score > 0 disagrees with the pipeline's own _cluster_is_high_risk on 498 of 3233 flows, so a replay built on this score is a different (weaker) rule, not A4. Reported only to show how much of the result rests on the structural branch.",
+    "n_disagreements_with_pipeline_cluster_high": 498,
+    "variants": {
+      "A1": {
+        "threshold": 3.57628e-07,
+        "realised_fpr": 0.2,
+        "fpr_gap_to_target": 0.0,
+        "operating_point": {
+          "total": 3233,
+          "tp": 754,
+          "fp": 100,
+          "fn": 1979,
+          "tn": 400,
+          "precision": 0.8829,
+          "recall": 0.2759,
+          "f1": 0.4204,
+          "fpr": 0.2
+        },
+        "curve": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.014,
+            0.015368
+          ],
+          [
+            0.016,
+            0.015734
+          ],
+          [
+            0.018,
+            0.017929
+          ],
+          [
+            0.02,
+            0.024515
+          ],
+          [
+            0.022,
+            0.025247
+          ],
+          [
+            0.024,
+            0.025613
+          ],
+          [
+            0.026,
+            0.031101
+          ],
+          [
+            0.028,
+            0.048299
+          ],
+          [
+            0.03,
+            0.062569
+          ],
+          [
+            0.032,
+            0.064032
+          ],
+          [
+            0.034,
+            0.065496
+          ],
+          [
+            0.036,
+            0.068789
+          ],
+          [
+            0.038,
+            0.076107
+          ],
+          [
+            0.04,
+            0.081961
+          ],
+          [
+            0.042,
+            0.083059
+          ],
+          [
+            0.044,
+            0.084523
+          ],
+          [
+            0.046,
+            0.086718
+          ],
+          [
+            0.048,
+            0.092938
+          ],
+          [
+            0.05,
+            0.098427
+          ],
+          [
+            0.052,
+            0.109038
+          ],
+          [
+            0.054,
+            0.111233
+          ],
+          [
+            0.056,
+            0.111965
+          ],
+          [
+            0.058,
+            0.119649
+          ],
+          [
+            0.06,
+            0.121844
+          ],
+          [
+            0.062,
+            0.12404
+          ],
+          [
+            0.064,
+            0.126235
+          ],
+          [
+            0.066,
+            0.126235
+          ],
+          [
+            0.068,
+            0.126601
+          ],
+          [
+            0.07,
+            0.126601
+          ],
+          [
+            0.072,
+            0.132455
+          ],
+          [
+            0.074,
+            0.133187
+          ],
+          [
+            0.076,
+            0.133919
+          ],
+          [
+            0.078,
+            0.135016
+          ],
+          [
+            0.08,
+            0.143066
+          ],
+          [
+            0.082,
+            0.150384
+          ],
+          [
+            0.084,
+            0.153311
+          ],
+          [
+            0.086,
+            0.155141
+          ],
+          [
+            0.088,
+            0.156604
+          ],
+          [
+            0.09,
+            0.158068
+          ],
+          [
+            0.092,
+            0.158434
+          ],
+          [
+            0.094,
+            0.159166
+          ],
+          [
+            0.096,
+            0.161727
+          ],
+          [
+            0.098,
+            0.168313
+          ],
+          [
+            0.1,
+            0.178924
+          ],
+          [
+            0.102,
+            0.180022
+          ],
+          [
+            0.104,
+            0.180388
+          ],
+          [
+            0.106,
+            0.181486
+          ],
+          [
+            0.108,
+            0.184047
+          ],
+          [
+            0.11,
+            0.186242
+          ],
+          [
+            0.112,
+            0.190999
+          ],
+          [
+            0.114,
+            0.191731
+          ],
+          [
+            0.116,
+            0.192462
+          ],
+          [
+            0.118,
+            0.197219
+          ],
+          [
+            0.12,
+            0.213685
+          ],
+          [
+            0.122,
+            0.213685
+          ],
+          [
+            0.124,
+            0.21405
+          ],
+          [
+            0.126,
+            0.216246
+          ],
+          [
+            0.128,
+            0.217709
+          ],
+          [
+            0.13,
+            0.227589
+          ],
+          [
+            0.132,
+            0.231248
+          ],
+          [
+            0.134,
+            0.232711
+          ],
+          [
+            0.136,
+            0.233809
+          ],
+          [
+            0.138,
+            0.238932
+          ],
+          [
+            0.14,
+            0.245152
+          ],
+          [
+            0.142,
+            0.247713
+          ],
+          [
+            0.144,
+            0.247713
+          ],
+          [
+            0.146,
+            0.248079
+          ],
+          [
+            0.148,
+            0.248445
+          ],
+          [
+            0.15,
+            0.251738
+          ],
+          [
+            0.152,
+            0.253568
+          ],
+          [
+            0.154,
+            0.255031
+          ],
+          [
+            0.156,
+            0.255763
+          ],
+          [
+            0.158,
+            0.256129
+          ],
+          [
+            0.16,
+            0.258324
+          ],
+          [
+            0.162,
+            0.260885
+          ],
+          [
+            0.164,
+            0.261617
+          ],
+          [
+            0.166,
+            0.261617
+          ],
+          [
+            0.168,
+            0.263081
+          ],
+          [
+            0.17,
+            0.263813
+          ],
+          [
+            0.172,
+            0.263813
+          ],
+          [
+            0.174,
+            0.26491
+          ],
+          [
+            0.176,
+            0.265276
+          ],
+          [
+            0.178,
+            0.265642
+          ],
+          [
+            0.18,
+            0.267106
+          ],
+          [
+            0.182,
+            0.267472
+          ],
+          [
+            0.184,
+            0.267838
+          ],
+          [
+            0.186,
+            0.269301
+          ],
+          [
+            0.188,
+            0.269301
+          ],
+          [
+            0.19,
+            0.269301
+          ],
+          [
+            0.192,
+            0.270765
+          ],
+          [
+            0.194,
+            0.271497
+          ],
+          [
+            0.196,
+            0.271497
+          ],
+          [
+            0.198,
+            0.27296
+          ],
+          [
+            0.2,
+            0.275887
+          ],
+          [
+            0.204,
+            0.278449
+          ],
+          [
+            0.212,
+            0.28101
+          ]
+        ],
+        "n_curve_points": 97,
+        "score_auc": 0.6063,
+        "score_auc_n_flows": 984,
+        "score_auc_excluded_no_score": 2249,
+        "repo_helper_cross_check": {
+          "helper": "the copied eval_ood_method_comparison.threshold_at_target_fpr, run on this variant's own benign scores (one entry per benign flow, -inf where the GNN scored nothing)",
+          "threshold": 3.57628e-07,
+          "threshold_is_minus_infinity": false,
+          "realised_fpr": 0.2,
+          "recall": 0.275887,
+          "same_realised_fpr_as_selected": true,
+          "agrees_on_operating_point": true,
+          "note": "the sweep grid is the union of BOTH thresholdable scores' distinct benign values, i.e. a superset of each variant's own candidate set, so a variant can land closer to the target FPR than this per-variant-only helper can (the union grid is the same for every variant, so it privileges none of them). A divergence here means the union grid reached a closer FPR. A divergence does NOT mean the helper is wrong: both use the same strict \">\" rule and the same full-benign-pool FPR."
+        }
+      },
+      "A3": {
+        "threshold": 0.034482758621,
+        "realised_fpr": 0.208,
+        "fpr_gap_to_target": 0.008,
+        "operating_point": {
+          "total": 3233,
+          "tp": 405,
+          "fp": 104,
+          "fn": 2328,
+          "tn": 396,
+          "precision": 0.7957,
+          "recall": 0.1482,
+          "f1": 0.2498,
+          "fpr": 0.208
+        },
+        "curve": [
+          [
+            0.0,
+            0.002927
+          ],
+          [
+            0.028,
+            0.009147
+          ],
+          [
+            0.04,
+            0.009513
+          ],
+          [
+            0.042,
+            0.010977
+          ],
+          [
+            0.048,
+            0.019027
+          ],
+          [
+            0.054,
+            0.019027
+          ],
+          [
+            0.06,
+            0.027442
+          ],
+          [
+            0.07,
+            0.027442
+          ],
+          [
+            0.072,
+            0.03476
+          ],
+          [
+            0.08,
+            0.038785
+          ],
+          [
+            0.084,
+            0.043908
+          ],
+          [
+            0.09,
+            0.043908
+          ],
+          [
+            0.098,
+            0.046103
+          ],
+          [
+            0.1,
+            0.062935
+          ],
+          [
+            0.112,
+            0.077936
+          ],
+          [
+            0.116,
+            0.087816
+          ],
+          [
+            0.122,
+            0.088913
+          ],
+          [
+            0.134,
+            0.090743
+          ],
+          [
+            0.136,
+            0.094402
+          ],
+          [
+            0.152,
+            0.102086
+          ],
+          [
+            0.156,
+            0.103549
+          ],
+          [
+            0.178,
+            0.13648
+          ],
+          [
+            0.182,
+            0.140871
+          ],
+          [
+            0.188,
+            0.148189
+          ],
+          [
+            0.208,
+            0.148189
+          ],
+          [
+            0.224,
+            0.159898
+          ],
+          [
+            0.226,
+            0.169777
+          ],
+          [
+            0.248,
+            0.170143
+          ],
+          [
+            0.25,
+            0.170143
+          ],
+          [
+            0.252,
+            0.189535
+          ],
+          [
+            0.272,
+            0.196121
+          ],
+          [
+            0.274,
+            0.200878
+          ],
+          [
+            0.292,
+            0.222832
+          ],
+          [
+            0.294,
+            0.222832
+          ],
+          [
+            0.298,
+            0.225027
+          ],
+          [
+            0.324,
+            0.225027
+          ],
+          [
+            0.328,
+            0.252836
+          ],
+          [
+            0.334,
+            0.259056
+          ],
+          [
+            0.34,
+            0.259056
+          ],
+          [
+            0.358,
+            0.267838
+          ],
+          [
+            0.366,
+            0.297475
+          ],
+          [
+            0.372,
+            0.298573
+          ],
+          [
+            0.376,
+            0.3015
+          ],
+          [
+            0.384,
+            0.31577
+          ],
+          [
+            0.4,
+            0.328577
+          ],
+          [
+            0.404,
+            0.337358
+          ],
+          [
+            0.406,
+            0.344676
+          ],
+          [
+            0.424,
+            0.351262
+          ],
+          [
+            0.442,
+            0.351994
+          ],
+          [
+            0.45,
+            0.359678
+          ],
+          [
+            0.466,
+            0.365898
+          ],
+          [
+            0.472,
+            0.381266
+          ],
+          [
+            0.48,
+            0.389316
+          ],
+          [
+            0.486,
+            0.39517
+          ],
+          [
+            0.492,
+            0.40139
+          ],
+          [
+            0.5,
+            0.410538
+          ],
+          [
+            0.504,
+            0.410538
+          ],
+          [
+            0.506,
+            0.419685
+          ],
+          [
+            0.526,
+            0.470545
+          ],
+          [
+            0.53,
+            0.553604
+          ]
+        ],
+        "n_curve_points": 60,
+        "score_auc": 0.4711,
+        "repo_helper_cross_check": {
+          "helper": "the copied eval_ood_method_comparison.threshold_at_target_fpr, run on this variant's own benign scores (one entry per benign flow, -inf where the GNN scored nothing)",
+          "threshold": 0.034482758621,
+          "threshold_is_minus_infinity": false,
+          "realised_fpr": 0.208,
+          "recall": 0.148189,
+          "same_realised_fpr_as_selected": true,
+          "agrees_on_operating_point": true,
+          "note": "the sweep grid is the union of BOTH thresholdable scores' distinct benign values, i.e. a superset of each variant's own candidate set, so a variant can land closer to the target FPR than this per-variant-only helper can (the union grid is the same for every variant, so it privileges none of them). A divergence here means the union grid reached a closer FPR. A divergence does NOT mean the helper is wrong: both use the same strict \">\" rule and the same full-benign-pool FPR."
+        }
+      },
+      "A4": {
+        "threshold": 0.030223390276,
+        "realised_fpr": 0.204,
+        "fpr_gap_to_target": 0.004,
+        "operating_point": {
+          "total": 3233,
+          "tp": 760,
+          "fp": 102,
+          "fn": 1973,
+          "tn": 398,
+          "precision": 0.8817,
+          "recall": 0.2781,
+          "f1": 0.4228,
+          "fpr": 0.204
+        },
+        "curve": [
+          [
+            0.12,
+            0.213319
+          ],
+          [
+            0.148,
+            0.21405
+          ],
+          [
+            0.152,
+            0.219173
+          ],
+          [
+            0.158,
+            0.225027
+          ],
+          [
+            0.162,
+            0.247713
+          ],
+          [
+            0.178,
+            0.249909
+          ],
+          [
+            0.182,
+            0.258324
+          ],
+          [
+            0.186,
+            0.26491
+          ],
+          [
+            0.188,
+            0.271862
+          ],
+          [
+            0.194,
+            0.272228
+          ],
+          [
+            0.196,
+            0.276619
+          ],
+          [
+            0.204,
+            0.278083
+          ],
+          [
+            0.206,
+            0.28101
+          ],
+          [
+            0.224,
+            0.290889
+          ],
+          [
+            0.25,
+            0.313575
+          ],
+          [
+            0.256,
+            0.328211
+          ],
+          [
+            0.262,
+            0.336261
+          ],
+          [
+            0.278,
+            0.337358
+          ],
+          [
+            0.28,
+            0.345408
+          ],
+          [
+            0.296,
+            0.359312
+          ],
+          [
+            0.298,
+            0.360776
+          ],
+          [
+            0.3,
+            0.371021
+          ],
+          [
+            0.304,
+            0.371021
+          ],
+          [
+            0.306,
+            0.371387
+          ],
+          [
+            0.326,
+            0.405049
+          ]
+        ],
+        "n_curve_points": 25
+      },
+      "_sweep": {
+        "n_theta_candidates": 157,
+        "theta_min": 0.0,
+        "theta_max": 1.000000000001,
+        "n_theta_from_A1_score": 97,
+        "n_theta_from_A3_score": 60,
+        "n_flows_without_gnn_score": 2249,
+        "n_benign_flows_without_gnn_score": 374
+      }
+    }
+  }
+}

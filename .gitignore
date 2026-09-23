@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+data/data/23pcap/
+data/data/23pcap_chunks/
+data/data/17pcap*/
+data/data/MachineLearningCVE/
+data/data/GeneratedLabelledFlows/
+eval_results/fusion_comparison/*_per_flow.json
+*.log
+*.aux
+*.blg
+*.out
+*.synctex.gz
+smoke-report.json

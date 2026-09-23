@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemesys-gnn4id"
+version = "1.0.0"
+description = "GNN4ID + NEMESYS 集成网络流量分析系统"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.19",
+    "pandas>=1.2",
+    "scikit-learn>=0.24",
+    "matplotlib>=3.3",
+    "nfstream>=6.5",
+    "torch>=2.0",
+    "torch-geometric>=2.4",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+nemesys-gnn4id = "nemesys_gnn4id.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

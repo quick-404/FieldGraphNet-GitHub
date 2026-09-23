@@ -1,0 +1,3706 @@
+{
+  "_meta": {
+    "purpose": "main-line comparison of the protocol-aware system against standard OOD detection methods on a shared GNN4ID base model, per protocol, matched ~20% FPR",
+    "model": "models/model.pth",
+    "device": "cpu",
+    "base_embedding": "graph_prediction_1 output (16-dim penultimate)",
+    "classes": {
+      "benign_index": 0,
+      "in_domain_attack_index": 6,
+      "in_domain_attack": "DDoS-HTTP_Flood-.pcap",
+      "n_model_classes": 8
+    },
+    "methods": [
+      "GNN-raw",
+      "MSP",
+      "ODIN",
+      "ODIN_T1000",
+      "Mahalanobis_known",
+      "Mahalanobis_argmax",
+      "Mahalanobis"
+    ],
+    "target_fpr": 0.2,
+    "threshold_rule": "multisignal_label_free_fusion.threshold_at_target_fpr semantics, copied here: benign-only candidates just above each distinct benign score, operating point = closest realised FPR to 0.20, detection strict \">\". pu_two_step_detection.metrics_at_fpr was NOT used because its internal np.quantile rule is not tie-aware.",
+    "benign_scores_for_threshold": "each method's own scores on the held-out benign TEST flows (y == 0), the convention of multisignal_label_free_fusion.py and complete_fusion_controlled_fpr.py",
+    "split_convention": {
+      "source": "experiments/multisignal_label_free_fusion.py",
+      "split_benign": "copied (N_FIT, N_CALIB, N_TEST)",
+      "N_FIT": 280,
+      "N_CALIB": 70,
+      "N_TEST": 150,
+      "seeds": [
+        42,
+        123,
+        2024,
+        7,
+        99
+      ]
+    },
+    "mahalanobis": {
+      "fit_data": "in-domain training data only: the benign fit split (280 flows) plus every extracted in-domain DDoS flow (DDoS-HTTP_Flood-.pcap); no OOD test protocol enters the fit",
+      "variants": {
+        "known": "textbook Lee et al. fit on the KNOWN in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6)); the in-domain domain supplies only these two classes, so K=2 class-conditional Gaussians are fitted",
+        "argmax": "SAME fit flows, labels = the base model's own argmax prediction (label-free: needs no in-domain attack labels), so K = the number of distinct predicted classes"
+      },
+      "headline_rule": "the reported per-protocol \"Mahalanobis\" is the STRONGER of the two variants for that protocol AND seed, chosen by test AUC (ties -> higher F1); this oracle choice over the variant favours the baseline and therefore keeps our margin conservative. Both variants are reported separately (Mahalanobis_known / Mahalanobis_argmax) and the per-protocol winner is recorded as mahalanobis_variant, so the choice is auditable.",
+      "fit_contract": "fit_mahalanobis is called ONCE per seed per variant on the whole in-domain split (never per flow, which would raise \"class 0 has no training samples\"), with contiguous integer labels in [0, K) after the documented remap",
+      "label_index_convention": "variant labels are MODEL class indices in [0, 8) (Benign=0, ..., BruteForce=7) and a label outside that range raises. Because in-domain data covers only a subset of the 8 classes, the labels present are remapped to a contiguous 0..K-1 fit index before fit_mahalanobis (which requires contiguity, commit 0c3bb6d); the remap is recorded per variant per seed in label_remap_to_fit_index, so no class is silently dropped from the pooled covariance",
+      "score_convention": "SQUARED Mahalanobis distance to the nearest class-conditional Gaussian (no square root; unlike scipy.spatial.distance.mahalanobis). Only the ranking/threshold matter, and the convention is used consistently for every method",
+      "embedding_space": "16-dim graph_prediction_1 penultimate embedding, used as-is: it needs no standardisation (the 82-dim raw flow-feature space would, since cond(cov) is ~1.3e18 unstandardised vs ~19 after z-scoring, which makes the 1e-6 ridge inert); no feature-space fallback was used",
+      "variant_wins_by_auc_per_protocol": {
+        "DNS_Spoofing.pcap": {
+          "known": 0,
+          "argmax": 5
+        },
+        "Mirai-udpplain.pcap": {
+          "known": 1,
+          "argmax": 4
+        },
+        "SqlInjection.pcap": {
+          "known": 1,
+          "argmax": 4
+        },
+        "DictionaryBruteForce.pcap": {
+          "known": 3,
+          "argmax": 2
+        },
+        "Recon-PortScan.pcap": {
+          "known": 2,
+          "argmax": 3
+        }
+      },
+      "variant_wins_by_f1_per_protocol": {
+        "DNS_Spoofing.pcap": {
+          "known": 4,
+          "argmax": 1
+        },
+        "Mirai-udpplain.pcap": {
+          "known": 4,
+          "argmax": 1
+        },
+        "SqlInjection.pcap": {
+          "known": 2,
+          "argmax": 3
+        },
+        "DictionaryBruteForce.pcap": {
+          "known": 5,
+          "argmax": 0
+        },
+        "Recon-PortScan.pcap": {
+          "known": 4,
+          "argmax": 1
+        }
+      },
+      "per_seed_detail": {
+        "42": {
+          "known": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+            "n_classes_used": 2,
+            "classes_used": [
+              0,
+              6
+            ],
+            "classes_used_names": [
+              "Benign",
+              "DDos"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "6": 1
+            },
+            "contiguous_remap_needed": true
+          },
+          "argmax": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+            "n_classes_used": 6,
+            "classes_used": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "classes_used_names": [
+              "Benign",
+              "WebBased",
+              "Spoofing",
+              "Recon",
+              "DDos",
+              "BruteForce"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "1": 1,
+              "2": 2,
+              "3": 3,
+              "6": 4,
+              "7": 5
+            },
+            "contiguous_remap_needed": true
+          }
+        },
+        "123": {
+          "known": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+            "n_classes_used": 2,
+            "classes_used": [
+              0,
+              6
+            ],
+            "classes_used_names": [
+              "Benign",
+              "DDos"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "6": 1
+            },
+            "contiguous_remap_needed": true
+          },
+          "argmax": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+            "n_classes_used": 6,
+            "classes_used": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "classes_used_names": [
+              "Benign",
+              "WebBased",
+              "Spoofing",
+              "Recon",
+              "DDos",
+              "BruteForce"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "1": 1,
+              "2": 2,
+              "3": 3,
+              "6": 4,
+              "7": 5
+            },
+            "contiguous_remap_needed": true
+          }
+        },
+        "2024": {
+          "known": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+            "n_classes_used": 2,
+            "classes_used": [
+              0,
+              6
+            ],
+            "classes_used_names": [
+              "Benign",
+              "DDos"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "6": 1
+            },
+            "contiguous_remap_needed": true
+          },
+          "argmax": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+            "n_classes_used": 6,
+            "classes_used": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "classes_used_names": [
+              "Benign",
+              "WebBased",
+              "Spoofing",
+              "Recon",
+              "DDos",
+              "BruteForce"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "1": 1,
+              "2": 2,
+              "3": 3,
+              "6": 4,
+              "7": 5
+            },
+            "contiguous_remap_needed": true
+          }
+        },
+        "7": {
+          "known": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+            "n_classes_used": 2,
+            "classes_used": [
+              0,
+              6
+            ],
+            "classes_used_names": [
+              "Benign",
+              "DDos"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "6": 1
+            },
+            "contiguous_remap_needed": true
+          },
+          "argmax": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+            "n_classes_used": 6,
+            "classes_used": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "classes_used_names": [
+              "Benign",
+              "WebBased",
+              "Spoofing",
+              "Recon",
+              "DDos",
+              "BruteForce"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "1": 1,
+              "2": 2,
+              "3": 3,
+              "6": 4,
+              "7": 5
+            },
+            "contiguous_remap_needed": true
+          }
+        },
+        "99": {
+          "known": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+            "n_classes_used": 2,
+            "classes_used": [
+              0,
+              6
+            ],
+            "classes_used_names": [
+              "Benign",
+              "DDos"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "6": 1
+            },
+            "contiguous_remap_needed": true
+          },
+          "argmax": {
+            "n_fit_flows": 780,
+            "n_benign_fit": 280,
+            "n_indomain_attack": 500,
+            "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+            "n_classes_used": 6,
+            "classes_used": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "classes_used_names": [
+              "Benign",
+              "WebBased",
+              "Spoofing",
+              "Recon",
+              "DDos",
+              "BruteForce"
+            ],
+            "label_remap_to_fit_index": {
+              "0": 0,
+              "1": 1,
+              "2": 2,
+              "3": 3,
+              "6": 4,
+              "7": 5
+            },
+            "contiguous_remap_needed": true
+          }
+        }
+      }
+    },
+    "odin_temperature": {
+      "sweep": [
+        1.0,
+        10.0,
+        100.0,
+        1000.0
+      ],
+      "default_cnn_temperature": 1000.0,
+      "default_reported_as": "ODIN_T1000",
+      "headline_method": "ODIN uses the sweep-selected temperature; selection data = in-domain validation only (benign calibration split as negatives + in-domain DDoS as positives), metric = in-domain AUC of the ODIN score, ties -> smallest T. The five OOD test protocols never enter the selection.",
+      "why": "T=1000 is Liang et al.'s CNN-scale default and is nearly degenerate for a C=8 classifier (MSP ceiling 1 - 1/8 = 0.875, in-domain score spread ~1.1e-4 at T=1000 vs ~1.5e-1 at T=1), so reporting it alone would cripple the baseline and make the comparison unfair in our favour",
+      "selected_temperature_per_seed": {
+        "42": 1000.0,
+        "123": 1000.0,
+        "2024": 1000.0,
+        "7": 1000.0,
+        "99": 1000.0
+      },
+      "selection_detail_per_seed": {
+        "42": {
+          "selected_temperature": 1000.0,
+          "selection_metric": "in-domain AUC (ODIN score)",
+          "selection_in_domain_auc": 0.7371,
+          "default_temperature": 1000.0,
+          "default_in_domain_auc": 0.7371,
+          "sweep": {
+            "ODIN_T1": {
+              "in_domain_auc": 0.7047,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T10": {
+              "in_domain_auc": 0.7239,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T100": {
+              "in_domain_auc": 0.7356,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T1000": {
+              "in_domain_auc": 0.7371,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": true
+            }
+          }
+        },
+        "123": {
+          "selected_temperature": 1000.0,
+          "selection_metric": "in-domain AUC (ODIN score)",
+          "selection_in_domain_auc": 0.7244,
+          "default_temperature": 1000.0,
+          "default_in_domain_auc": 0.7244,
+          "sweep": {
+            "ODIN_T1": {
+              "in_domain_auc": 0.6755,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T10": {
+              "in_domain_auc": 0.7004,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T100": {
+              "in_domain_auc": 0.7223,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T1000": {
+              "in_domain_auc": 0.7244,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": true
+            }
+          }
+        },
+        "2024": {
+          "selected_temperature": 1000.0,
+          "selection_metric": "in-domain AUC (ODIN score)",
+          "selection_in_domain_auc": 0.695,
+          "default_temperature": 1000.0,
+          "default_in_domain_auc": 0.695,
+          "sweep": {
+            "ODIN_T1": {
+              "in_domain_auc": 0.6921,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T10": {
+              "in_domain_auc": 0.6842,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T100": {
+              "in_domain_auc": 0.6941,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T1000": {
+              "in_domain_auc": 0.695,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": true
+            }
+          }
+        },
+        "7": {
+          "selected_temperature": 1000.0,
+          "selection_metric": "in-domain AUC (ODIN score)",
+          "selection_in_domain_auc": 0.6976,
+          "default_temperature": 1000.0,
+          "default_in_domain_auc": 0.6976,
+          "sweep": {
+            "ODIN_T1": {
+              "in_domain_auc": 0.6461,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T10": {
+              "in_domain_auc": 0.6794,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T100": {
+              "in_domain_auc": 0.6959,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T1000": {
+              "in_domain_auc": 0.6976,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": true
+            }
+          }
+        },
+        "99": {
+          "selected_temperature": 1000.0,
+          "selection_metric": "in-domain AUC (ODIN score)",
+          "selection_in_domain_auc": 0.6845,
+          "default_temperature": 1000.0,
+          "default_in_domain_auc": 0.6845,
+          "sweep": {
+            "ODIN_T1": {
+              "in_domain_auc": 0.6545,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T10": {
+              "in_domain_auc": 0.6702,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T100": {
+              "in_domain_auc": 0.6827,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": false
+            },
+            "ODIN_T1000": {
+              "in_domain_auc": 0.6845,
+              "n_benign_val": 70,
+              "n_indomain_attack": 500,
+              "selected": true
+            }
+          }
+        }
+      }
+    },
+    "max_flows_per_chunk": 50,
+    "chunk_dir": "data/data/23pcap_chunks",
+    "n_flows_per_source": {
+      "BenignTraffic.pcap": 500,
+      "DDoS-HTTP_Flood-.pcap": 500,
+      "DNS_Spoofing.pcap": 500,
+      "Mirai-udpplain.pcap": 233,
+      "SqlInjection.pcap": 500,
+      "DictionaryBruteForce.pcap": 500,
+      "Recon-PortScan.pcap": 500
+    },
+    "extraction": {
+      "BenignTraffic.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "DDoS-HTTP_Flood-.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "DNS_Spoofing.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "Mirai-udpplain.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 233,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "SqlInjection.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "DictionaryBruteForce.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      },
+      "Recon-PortScan.pcap": {
+        "n_chunks": 10,
+        "n_chunks_without_flows": 0,
+        "chunks_without_flows": [],
+        "chunks_without_graphs": [],
+        "n_flows": 500,
+        "backends": [
+          "scapy"
+        ]
+      }
+    },
+    "model_argmax_histogram_per_source": {
+      "BenignTraffic.pcap": {
+        "Benign": 306,
+        "WebBased": 77,
+        "Spoofing": 111,
+        "Recon": 4,
+        "DDos": 1,
+        "BruteForce": 1
+      },
+      "DDoS-HTTP_Flood-.pcap": {
+        "Benign": 97,
+        "WebBased": 192,
+        "Spoofing": 168,
+        "Recon": 1,
+        "DDos": 1,
+        "BruteForce": 41
+      },
+      "DNS_Spoofing.pcap": {
+        "Benign": 330,
+        "WebBased": 19,
+        "Spoofing": 142,
+        "Recon": 2,
+        "BruteForce": 7
+      },
+      "Mirai-udpplain.pcap": {
+        "Benign": 117,
+        "WebBased": 19,
+        "Spoofing": 89,
+        "Recon": 2,
+        "Dos": 1,
+        "DDos": 1,
+        "BruteForce": 4
+      },
+      "SqlInjection.pcap": {
+        "Benign": 299,
+        "WebBased": 62,
+        "Spoofing": 107,
+        "Recon": 2,
+        "Mirai": 1,
+        "BruteForce": 29
+      },
+      "DictionaryBruteForce.pcap": {
+        "Benign": 256,
+        "WebBased": 72,
+        "Spoofing": 145,
+        "Recon": 1,
+        "DDos": 1,
+        "BruteForce": 25
+      },
+      "Recon-PortScan.pcap": {
+        "Benign": 177,
+        "WebBased": 86,
+        "Spoofing": 199,
+        "Recon": 17,
+        "DDos": 9,
+        "BruteForce": 12
+      }
+    },
+    "our_system_provenance": {
+      "source_file": "eval_results/fusion_comparison/complete_fusion_controlled_fpr.json",
+      "key": "Fusion-complete",
+      "per_protocol": {
+        "DNS_Spoofing.pcap": {
+          "auc": 0.5726,
+          "recall": 0.334,
+          "fpr": 0.2,
+          "precision": 0.8477,
+          "f1": 0.4792
+        },
+        "Mirai-udpplain.pcap": {
+          "auc": 0.7064,
+          "recall": 0.5107,
+          "fpr": 0.2,
+          "precision": 0.7987,
+          "f1": 0.623
+        },
+        "SqlInjection.pcap": {
+          "auc": 0.5948,
+          "recall": 0.284,
+          "fpr": 0.2,
+          "precision": 0.8256,
+          "f1": 0.4226
+        },
+        "DictionaryBruteForce.pcap": {
+          "auc": 0.6186,
+          "recall": 0.42,
+          "fpr": 0.2,
+          "precision": 0.875,
+          "f1": 0.5676
+        },
+        "Recon-PortScan.pcap": {
+          "auc": 0.6294,
+          "recall": 0.304,
+          "fpr": 0.2,
+          "precision": 0.8352,
+          "f1": 0.4457
+        }
+      },
+      "protocols_missing": []
+    },
+    "our_system_reference_caveat": "Fusion-complete is a single committed partition (benign train 350 = N_FIT+N_CALIB, test 150, seed 42) and its threshold rule is the plain quantile in complete_fusion_controlled_fpr.py; our seed-42 benign test split is the identical 150 flows, so the comparison is matched.",
+    "notes": "feature extraction and GNN inference run once per source and are reused across seeds; GNN-raw score = 1 - P(benign) of the model's own softmax; realised fpr is reported, not assumed",
+    "elapsed_seconds": 360.6,
+    "feature_backend_requested": "scapy",
+    "feature_backend_used": "scapy",
+    "feature_backend_reason": "forced by NEMESYS_FEATURE_BACKEND=scapy",
+    "nfstream_importable": false,
+    "backend_note": "feature_backend_used records which extractor actually produced the 82-dim features. The nfstream and scapy paths are NOT equivalent (~49% cell agreement; 12/82 dimensions never agree; even the extracted flow counts differ), so numbers from different backends must never be compared or mixed.",
+    "feature_backend_per_chunk_counts": {
+      "scapy": 70
+    },
+    "feature_backend_consistent": true,
+    "feature_backend_per_chunk": {
+      "BenignTraffic.pcap": [
+        {
+          "chunk": "BenignTraffic_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "BenignTraffic_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "DDoS-HTTP_Flood-.pcap": [
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DDoS-HTTP_Flood-_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "DNS_Spoofing.pcap": [
+        {
+          "chunk": "DNS_Spoofing_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DNS_Spoofing_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "Mirai-udpplain.pcap": [
+        {
+          "chunk": "Mirai-udpplain_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Mirai-udpplain_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "SqlInjection.pcap": [
+        {
+          "chunk": "SqlInjection_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "SqlInjection_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "DictionaryBruteForce.pcap": [
+        {
+          "chunk": "DictionaryBruteForce_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "DictionaryBruteForce_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ],
+      "Recon-PortScan.pcap": [
+        {
+          "chunk": "Recon-PortScan_chunk1.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk2.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk3.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk4.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk5.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk6.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk7.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk8.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk9.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        },
+        {
+          "chunk": "Recon-PortScan_chunk10.pcap",
+          "backend": "scapy",
+          "reason": "forced by NEMESYS_FEATURE_BACKEND=scapy"
+        }
+      ]
+    }
+  },
+  "per_seed": {
+    "42": {
+      "protocols": {
+        "DNS_Spoofing.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4164,
+              "recall": 0.166,
+              "precision": 0.7345,
+              "f1": 0.2708,
+              "fpr": 0.2,
+              "threshold": 0.991441
+            },
+            "MSP": {
+              "auc": 0.3968,
+              "recall": 0.188,
+              "precision": 0.7581,
+              "f1": 0.3013,
+              "fpr": 0.2,
+              "threshold": 0.260839
+            },
+            "ODIN": {
+              "auc": 0.3513,
+              "recall": 0.064,
+              "precision": 0.5161,
+              "f1": 0.1139,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "ODIN_T1000": {
+              "auc": 0.3513,
+              "recall": 0.064,
+              "precision": 0.5161,
+              "f1": 0.1139,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "Mahalanobis_known": {
+              "auc": 0.6188,
+              "recall": 0.356,
+              "precision": 0.8558,
+              "f1": 0.5028,
+              "fpr": 0.2,
+              "threshold": 52.212815
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6248,
+              "recall": 0.356,
+              "precision": 0.8558,
+              "f1": 0.5028,
+              "fpr": 0.2,
+              "threshold": 54.356033
+            },
+            "Mahalanobis": {
+              "auc": 0.6248,
+              "recall": 0.356,
+              "precision": 0.8558,
+              "f1": 0.5028,
+              "fpr": 0.2,
+              "threshold": 54.356033,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Mirai-udpplain.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 233,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6061,
+              "recall": 0.2876,
+              "precision": 0.6907,
+              "f1": 0.4061,
+              "fpr": 0.2,
+              "threshold": 0.991441
+            },
+            "MSP": {
+              "auc": 0.5289,
+              "recall": 0.2575,
+              "precision": 0.6667,
+              "f1": 0.3715,
+              "fpr": 0.2,
+              "threshold": 0.260839
+            },
+            "ODIN": {
+              "auc": 0.5264,
+              "recall": 0.1288,
+              "precision": 0.5,
+              "f1": 0.2048,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "ODIN_T1000": {
+              "auc": 0.5264,
+              "recall": 0.1288,
+              "precision": 0.5,
+              "f1": 0.2048,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5221,
+              "recall": 0.2275,
+              "precision": 0.6386,
+              "f1": 0.3354,
+              "fpr": 0.2,
+              "threshold": 52.212815
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5161,
+              "recall": 0.2017,
+              "precision": 0.6104,
+              "f1": 0.3032,
+              "fpr": 0.2,
+              "threshold": 54.356033
+            },
+            "Mahalanobis": {
+              "auc": 0.5221,
+              "recall": 0.2275,
+              "precision": 0.6386,
+              "f1": 0.3354,
+              "fpr": 0.2,
+              "threshold": 52.212815,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "SqlInjection.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4632,
+              "recall": 0.226,
+              "precision": 0.7902,
+              "f1": 0.3515,
+              "fpr": 0.2,
+              "threshold": 0.991441
+            },
+            "MSP": {
+              "auc": 0.4516,
+              "recall": 0.176,
+              "precision": 0.7458,
+              "f1": 0.2848,
+              "fpr": 0.2,
+              "threshold": 0.260839
+            },
+            "ODIN": {
+              "auc": 0.4475,
+              "recall": 0.182,
+              "precision": 0.7521,
+              "f1": 0.2931,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "ODIN_T1000": {
+              "auc": 0.4475,
+              "recall": 0.182,
+              "precision": 0.7521,
+              "f1": 0.2931,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5597,
+              "recall": 0.258,
+              "precision": 0.8113,
+              "f1": 0.3915,
+              "fpr": 0.2,
+              "threshold": 52.212815
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5567,
+              "recall": 0.256,
+              "precision": 0.8101,
+              "f1": 0.3891,
+              "fpr": 0.2,
+              "threshold": 54.356033
+            },
+            "Mahalanobis": {
+              "auc": 0.5597,
+              "recall": 0.258,
+              "precision": 0.8113,
+              "f1": 0.3915,
+              "fpr": 0.2,
+              "threshold": 52.212815,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "DictionaryBruteForce.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.5345,
+              "recall": 0.298,
+              "precision": 0.8324,
+              "f1": 0.4389,
+              "fpr": 0.2,
+              "threshold": 0.991441
+            },
+            "MSP": {
+              "auc": 0.4811,
+              "recall": 0.194,
+              "precision": 0.7638,
+              "f1": 0.3094,
+              "fpr": 0.2,
+              "threshold": 0.260839
+            },
+            "ODIN": {
+              "auc": 0.4409,
+              "recall": 0.11,
+              "precision": 0.6471,
+              "f1": 0.188,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "ODIN_T1000": {
+              "auc": 0.4409,
+              "recall": 0.11,
+              "precision": 0.6471,
+              "f1": 0.188,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5843,
+              "recall": 0.278,
+              "precision": 0.8225,
+              "f1": 0.4155,
+              "fpr": 0.2,
+              "threshold": 52.212815
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5783,
+              "recall": 0.272,
+              "precision": 0.8193,
+              "f1": 0.4084,
+              "fpr": 0.2,
+              "threshold": 54.356033
+            },
+            "Mahalanobis": {
+              "auc": 0.5843,
+              "recall": 0.278,
+              "precision": 0.8225,
+              "f1": 0.4155,
+              "fpr": 0.2,
+              "threshold": 52.212815,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Recon-PortScan.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6293,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 0.991441
+            },
+            "MSP": {
+              "auc": 0.6297,
+              "recall": 0.432,
+              "precision": 0.878,
+              "f1": 0.5791,
+              "fpr": 0.2,
+              "threshold": 0.260839
+            },
+            "ODIN": {
+              "auc": 0.6205,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "ODIN_T1000": {
+              "auc": 0.6205,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 0.87432
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5072,
+              "recall": 0.242,
+              "precision": 0.8013,
+              "f1": 0.3717,
+              "fpr": 0.2,
+              "threshold": 52.212815
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5164,
+              "recall": 0.238,
+              "precision": 0.7987,
+              "f1": 0.3667,
+              "fpr": 0.2,
+              "threshold": 54.356033
+            },
+            "Mahalanobis": {
+              "auc": 0.5164,
+              "recall": 0.238,
+              "precision": 0.7987,
+              "f1": 0.3667,
+              "fpr": 0.2,
+              "threshold": 54.356033,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        }
+      },
+      "n_fit": 280,
+      "n_benign_test": 150,
+      "mahalanobis_fit": {
+        "known": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+          "n_classes_used": 2,
+          "classes_used": [
+            0,
+            6
+          ],
+          "classes_used_names": [
+            "Benign",
+            "DDos"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "6": 1
+          },
+          "contiguous_remap_needed": true
+        },
+        "argmax": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+          "n_classes_used": 6,
+          "classes_used": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          "classes_used_names": [
+            "Benign",
+            "WebBased",
+            "Spoofing",
+            "Recon",
+            "DDos",
+            "BruteForce"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "6": 4,
+            "7": 5
+          },
+          "contiguous_remap_needed": true
+        }
+      },
+      "odin_temperature_selection": {
+        "selected_temperature": 1000.0,
+        "selection_metric": "in-domain AUC (ODIN score)",
+        "selection_in_domain_auc": 0.7371,
+        "default_temperature": 1000.0,
+        "default_in_domain_auc": 0.7371,
+        "sweep": {
+          "ODIN_T1": {
+            "in_domain_auc": 0.7047,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T10": {
+            "in_domain_auc": 0.7239,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T100": {
+            "in_domain_auc": 0.7356,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T1000": {
+            "in_domain_auc": 0.7371,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": true
+          }
+        }
+      }
+    },
+    "123": {
+      "protocols": {
+        "DNS_Spoofing.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4157,
+              "recall": 0.166,
+              "precision": 0.7345,
+              "f1": 0.2708,
+              "fpr": 0.2,
+              "threshold": 0.992484
+            },
+            "MSP": {
+              "auc": 0.381,
+              "recall": 0.222,
+              "precision": 0.7872,
+              "f1": 0.3463,
+              "fpr": 0.2,
+              "threshold": 0.209077
+            },
+            "ODIN": {
+              "auc": 0.3376,
+              "recall": 0.082,
+              "precision": 0.5775,
+              "f1": 0.1436,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "ODIN_T1000": {
+              "auc": 0.3376,
+              "recall": 0.082,
+              "precision": 0.5775,
+              "f1": 0.1436,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "Mahalanobis_known": {
+              "auc": 0.6414,
+              "recall": 0.384,
+              "precision": 0.8649,
+              "f1": 0.5319,
+              "fpr": 0.2,
+              "threshold": 44.477548
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6505,
+              "recall": 0.378,
+              "precision": 0.863,
+              "f1": 0.5257,
+              "fpr": 0.2,
+              "threshold": 47.723669
+            },
+            "Mahalanobis": {
+              "auc": 0.6505,
+              "recall": 0.378,
+              "precision": 0.863,
+              "f1": 0.5257,
+              "fpr": 0.2,
+              "threshold": 47.723669,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Mirai-udpplain.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 233,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6107,
+              "recall": 0.2833,
+              "precision": 0.6875,
+              "f1": 0.4012,
+              "fpr": 0.2,
+              "threshold": 0.992484
+            },
+            "MSP": {
+              "auc": 0.5168,
+              "recall": 0.3133,
+              "precision": 0.7087,
+              "f1": 0.4345,
+              "fpr": 0.2,
+              "threshold": 0.209077
+            },
+            "ODIN": {
+              "auc": 0.5106,
+              "recall": 0.1888,
+              "precision": 0.5946,
+              "f1": 0.2866,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "ODIN_T1000": {
+              "auc": 0.5106,
+              "recall": 0.1888,
+              "precision": 0.5946,
+              "f1": 0.2866,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5338,
+              "recall": 0.2446,
+              "precision": 0.6552,
+              "f1": 0.3563,
+              "fpr": 0.2,
+              "threshold": 44.477548
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.538,
+              "recall": 0.2403,
+              "precision": 0.6512,
+              "f1": 0.3511,
+              "fpr": 0.2,
+              "threshold": 47.723669
+            },
+            "Mahalanobis": {
+              "auc": 0.538,
+              "recall": 0.2403,
+              "precision": 0.6512,
+              "f1": 0.3511,
+              "fpr": 0.2,
+              "threshold": 47.723669,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "SqlInjection.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4644,
+              "recall": 0.222,
+              "precision": 0.7872,
+              "f1": 0.3463,
+              "fpr": 0.2,
+              "threshold": 0.992484
+            },
+            "MSP": {
+              "auc": 0.4361,
+              "recall": 0.216,
+              "precision": 0.7826,
+              "f1": 0.3386,
+              "fpr": 0.2,
+              "threshold": 0.209077
+            },
+            "ODIN": {
+              "auc": 0.4433,
+              "recall": 0.236,
+              "precision": 0.7973,
+              "f1": 0.3642,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "ODIN_T1000": {
+              "auc": 0.4433,
+              "recall": 0.236,
+              "precision": 0.7973,
+              "f1": 0.3642,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5823,
+              "recall": 0.276,
+              "precision": 0.8214,
+              "f1": 0.4132,
+              "fpr": 0.2,
+              "threshold": 44.477548
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5865,
+              "recall": 0.268,
+              "precision": 0.8171,
+              "f1": 0.4036,
+              "fpr": 0.2,
+              "threshold": 47.723669
+            },
+            "Mahalanobis": {
+              "auc": 0.5865,
+              "recall": 0.268,
+              "precision": 0.8171,
+              "f1": 0.4036,
+              "fpr": 0.2,
+              "threshold": 47.723669,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "DictionaryBruteForce.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.5389,
+              "recall": 0.298,
+              "precision": 0.8324,
+              "f1": 0.4389,
+              "fpr": 0.2,
+              "threshold": 0.992484
+            },
+            "MSP": {
+              "auc": 0.4661,
+              "recall": 0.228,
+              "precision": 0.7917,
+              "f1": 0.354,
+              "fpr": 0.2,
+              "threshold": 0.209077
+            },
+            "ODIN": {
+              "auc": 0.4254,
+              "recall": 0.14,
+              "precision": 0.7,
+              "f1": 0.2333,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "ODIN_T1000": {
+              "auc": 0.4254,
+              "recall": 0.14,
+              "precision": 0.7,
+              "f1": 0.2333,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "Mahalanobis_known": {
+              "auc": 0.6061,
+              "recall": 0.292,
+              "precision": 0.8295,
+              "f1": 0.432,
+              "fpr": 0.2,
+              "threshold": 44.477548
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6001,
+              "recall": 0.288,
+              "precision": 0.8276,
+              "f1": 0.4273,
+              "fpr": 0.2,
+              "threshold": 47.723669
+            },
+            "Mahalanobis": {
+              "auc": 0.6061,
+              "recall": 0.292,
+              "precision": 0.8295,
+              "f1": 0.432,
+              "fpr": 0.2,
+              "threshold": 44.477548,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Recon-PortScan.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6345,
+              "recall": 0.242,
+              "precision": 0.8013,
+              "f1": 0.3717,
+              "fpr": 0.2,
+              "threshold": 0.992484
+            },
+            "MSP": {
+              "auc": 0.6234,
+              "recall": 0.452,
+              "precision": 0.8828,
+              "f1": 0.5979,
+              "fpr": 0.2,
+              "threshold": 0.209077
+            },
+            "ODIN": {
+              "auc": 0.6133,
+              "recall": 0.434,
+              "precision": 0.8785,
+              "f1": 0.581,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "ODIN_T1000": {
+              "auc": 0.6133,
+              "recall": 0.434,
+              "precision": 0.8785,
+              "f1": 0.581,
+              "fpr": 0.2,
+              "threshold": 0.874257
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5227,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 44.477548
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5165,
+              "recall": 0.244,
+              "precision": 0.8026,
+              "f1": 0.3742,
+              "fpr": 0.2,
+              "threshold": 47.723669
+            },
+            "Mahalanobis": {
+              "auc": 0.5227,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 44.477548,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        }
+      },
+      "n_fit": 280,
+      "n_benign_test": 150,
+      "mahalanobis_fit": {
+        "known": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+          "n_classes_used": 2,
+          "classes_used": [
+            0,
+            6
+          ],
+          "classes_used_names": [
+            "Benign",
+            "DDos"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "6": 1
+          },
+          "contiguous_remap_needed": true
+        },
+        "argmax": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+          "n_classes_used": 6,
+          "classes_used": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          "classes_used_names": [
+            "Benign",
+            "WebBased",
+            "Spoofing",
+            "Recon",
+            "DDos",
+            "BruteForce"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "6": 4,
+            "7": 5
+          },
+          "contiguous_remap_needed": true
+        }
+      },
+      "odin_temperature_selection": {
+        "selected_temperature": 1000.0,
+        "selection_metric": "in-domain AUC (ODIN score)",
+        "selection_in_domain_auc": 0.7244,
+        "default_temperature": 1000.0,
+        "default_in_domain_auc": 0.7244,
+        "sweep": {
+          "ODIN_T1": {
+            "in_domain_auc": 0.6755,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T10": {
+            "in_domain_auc": 0.7004,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T100": {
+            "in_domain_auc": 0.7223,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T1000": {
+            "in_domain_auc": 0.7244,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": true
+          }
+        }
+      }
+    },
+    "2024": {
+      "protocols": {
+        "DNS_Spoofing.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4202,
+              "recall": 0.164,
+              "precision": 0.7321,
+              "f1": 0.268,
+              "fpr": 0.2,
+              "threshold": 0.993959
+            },
+            "MSP": {
+              "auc": 0.4064,
+              "recall": 0.248,
+              "precision": 0.8052,
+              "f1": 0.3792,
+              "fpr": 0.2,
+              "threshold": 0.156258
+            },
+            "ODIN": {
+              "auc": 0.3691,
+              "recall": 0.102,
+              "precision": 0.6296,
+              "f1": 0.1756,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "ODIN_T1000": {
+              "auc": 0.3691,
+              "recall": 0.102,
+              "precision": 0.6296,
+              "f1": 0.1756,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "Mahalanobis_known": {
+              "auc": 0.6113,
+              "recall": 0.392,
+              "precision": 0.8673,
+              "f1": 0.5399,
+              "fpr": 0.2,
+              "threshold": 40.271704
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6183,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 42.174068
+            },
+            "Mahalanobis": {
+              "auc": 0.6183,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 42.174068,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Mirai-udpplain.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 233,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6251,
+              "recall": 0.2747,
+              "precision": 0.6809,
+              "f1": 0.3914,
+              "fpr": 0.2,
+              "threshold": 0.993959
+            },
+            "MSP": {
+              "auc": 0.5604,
+              "recall": 0.3648,
+              "precision": 0.7391,
+              "f1": 0.4885,
+              "fpr": 0.2,
+              "threshold": 0.156258
+            },
+            "ODIN": {
+              "auc": 0.5644,
+              "recall": 0.1931,
+              "precision": 0.6,
+              "f1": 0.2922,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "ODIN_T1000": {
+              "auc": 0.5644,
+              "recall": 0.1931,
+              "precision": 0.6,
+              "f1": 0.2922,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "Mahalanobis_known": {
+              "auc": 0.4856,
+              "recall": 0.2446,
+              "precision": 0.6552,
+              "f1": 0.3563,
+              "fpr": 0.2,
+              "threshold": 40.271704
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.4926,
+              "recall": 0.2446,
+              "precision": 0.6552,
+              "f1": 0.3563,
+              "fpr": 0.2,
+              "threshold": 42.174068
+            },
+            "Mahalanobis": {
+              "auc": 0.4926,
+              "recall": 0.2446,
+              "precision": 0.6552,
+              "f1": 0.3563,
+              "fpr": 0.2,
+              "threshold": 42.174068,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "SqlInjection.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4687,
+              "recall": 0.216,
+              "precision": 0.7826,
+              "f1": 0.3386,
+              "fpr": 0.2,
+              "threshold": 0.993959
+            },
+            "MSP": {
+              "auc": 0.4688,
+              "recall": 0.256,
+              "precision": 0.8101,
+              "f1": 0.3891,
+              "fpr": 0.2,
+              "threshold": 0.156258
+            },
+            "ODIN": {
+              "auc": 0.4726,
+              "recall": 0.258,
+              "precision": 0.8113,
+              "f1": 0.3915,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "ODIN_T1000": {
+              "auc": 0.4726,
+              "recall": 0.258,
+              "precision": 0.8113,
+              "f1": 0.3915,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5364,
+              "recall": 0.262,
+              "precision": 0.8137,
+              "f1": 0.3964,
+              "fpr": 0.2,
+              "threshold": 40.271704
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5459,
+              "recall": 0.27,
+              "precision": 0.8182,
+              "f1": 0.406,
+              "fpr": 0.2,
+              "threshold": 42.174068
+            },
+            "Mahalanobis": {
+              "auc": 0.5459,
+              "recall": 0.27,
+              "precision": 0.8182,
+              "f1": 0.406,
+              "fpr": 0.2,
+              "threshold": 42.174068,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        },
+        "DictionaryBruteForce.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.5413,
+              "recall": 0.29,
+              "precision": 0.8286,
+              "f1": 0.4296,
+              "fpr": 0.2,
+              "threshold": 0.993959
+            },
+            "MSP": {
+              "auc": 0.5019,
+              "recall": 0.292,
+              "precision": 0.8295,
+              "f1": 0.432,
+              "fpr": 0.2,
+              "threshold": 0.156258
+            },
+            "ODIN": {
+              "auc": 0.4659,
+              "recall": 0.156,
+              "precision": 0.7222,
+              "f1": 0.2566,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "ODIN_T1000": {
+              "auc": 0.4659,
+              "recall": 0.156,
+              "precision": 0.7222,
+              "f1": 0.2566,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5621,
+              "recall": 0.296,
+              "precision": 0.8315,
+              "f1": 0.4366,
+              "fpr": 0.2,
+              "threshold": 40.271704
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5667,
+              "recall": 0.296,
+              "precision": 0.8315,
+              "f1": 0.4366,
+              "fpr": 0.2,
+              "threshold": 42.174068
+            },
+            "Mahalanobis": {
+              "auc": 0.5667,
+              "recall": 0.296,
+              "precision": 0.8315,
+              "f1": 0.4366,
+              "fpr": 0.2,
+              "threshold": 42.174068,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Recon-PortScan.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6356,
+              "recall": 0.234,
+              "precision": 0.7959,
+              "f1": 0.3617,
+              "fpr": 0.2,
+              "threshold": 0.993959
+            },
+            "MSP": {
+              "auc": 0.6534,
+              "recall": 0.486,
+              "precision": 0.8901,
+              "f1": 0.6287,
+              "fpr": 0.2,
+              "threshold": 0.156258
+            },
+            "ODIN": {
+              "auc": 0.643,
+              "recall": 0.45,
+              "precision": 0.8824,
+              "f1": 0.596,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "ODIN_T1000": {
+              "auc": 0.643,
+              "recall": 0.45,
+              "precision": 0.8824,
+              "f1": 0.596,
+              "fpr": 0.2,
+              "threshold": 0.874207
+            },
+            "Mahalanobis_known": {
+              "auc": 0.4555,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 40.271704
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.4381,
+              "recall": 0.248,
+              "precision": 0.8052,
+              "f1": 0.3792,
+              "fpr": 0.2,
+              "threshold": 42.174068
+            },
+            "Mahalanobis": {
+              "auc": 0.4555,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 40.271704,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        }
+      },
+      "n_fit": 280,
+      "n_benign_test": 150,
+      "mahalanobis_fit": {
+        "known": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+          "n_classes_used": 2,
+          "classes_used": [
+            0,
+            6
+          ],
+          "classes_used_names": [
+            "Benign",
+            "DDos"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "6": 1
+          },
+          "contiguous_remap_needed": true
+        },
+        "argmax": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+          "n_classes_used": 6,
+          "classes_used": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          "classes_used_names": [
+            "Benign",
+            "WebBased",
+            "Spoofing",
+            "Recon",
+            "DDos",
+            "BruteForce"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "6": 4,
+            "7": 5
+          },
+          "contiguous_remap_needed": true
+        }
+      },
+      "odin_temperature_selection": {
+        "selected_temperature": 1000.0,
+        "selection_metric": "in-domain AUC (ODIN score)",
+        "selection_in_domain_auc": 0.695,
+        "default_temperature": 1000.0,
+        "default_in_domain_auc": 0.695,
+        "sweep": {
+          "ODIN_T1": {
+            "in_domain_auc": 0.6921,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T10": {
+            "in_domain_auc": 0.6842,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T100": {
+            "in_domain_auc": 0.6941,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T1000": {
+            "in_domain_auc": 0.695,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": true
+          }
+        }
+      }
+    },
+    "7": {
+      "protocols": {
+        "DNS_Spoofing.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4335,
+              "recall": 0.166,
+              "precision": 0.7345,
+              "f1": 0.2708,
+              "fpr": 0.2,
+              "threshold": 0.991578
+            },
+            "MSP": {
+              "auc": 0.4113,
+              "recall": 0.23,
+              "precision": 0.7931,
+              "f1": 0.3566,
+              "fpr": 0.2,
+              "threshold": 0.198037
+            },
+            "ODIN": {
+              "auc": 0.3591,
+              "recall": 0.07,
+              "precision": 0.5385,
+              "f1": 0.1239,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "ODIN_T1000": {
+              "auc": 0.3591,
+              "recall": 0.07,
+              "precision": 0.5385,
+              "f1": 0.1239,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "Mahalanobis_known": {
+              "auc": 0.635,
+              "recall": 0.442,
+              "precision": 0.8805,
+              "f1": 0.5885,
+              "fpr": 0.2,
+              "threshold": 32.845487
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6471,
+              "recall": 0.44,
+              "precision": 0.88,
+              "f1": 0.5867,
+              "fpr": 0.2,
+              "threshold": 33.191637
+            },
+            "Mahalanobis": {
+              "auc": 0.6471,
+              "recall": 0.44,
+              "precision": 0.88,
+              "f1": 0.5867,
+              "fpr": 0.2,
+              "threshold": 33.191637,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Mirai-udpplain.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 233,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.627,
+              "recall": 0.2876,
+              "precision": 0.6907,
+              "f1": 0.4061,
+              "fpr": 0.2,
+              "threshold": 0.991578
+            },
+            "MSP": {
+              "auc": 0.5475,
+              "recall": 0.3262,
+              "precision": 0.717,
+              "f1": 0.4484,
+              "fpr": 0.2,
+              "threshold": 0.198037
+            },
+            "ODIN": {
+              "auc": 0.5393,
+              "recall": 0.1588,
+              "precision": 0.5522,
+              "f1": 0.2467,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "ODIN_T1000": {
+              "auc": 0.5393,
+              "recall": 0.1588,
+              "precision": 0.5522,
+              "f1": 0.2467,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5182,
+              "recall": 0.2833,
+              "precision": 0.6875,
+              "f1": 0.4012,
+              "fpr": 0.2,
+              "threshold": 32.845487
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5213,
+              "recall": 0.279,
+              "precision": 0.6842,
+              "f1": 0.3963,
+              "fpr": 0.2,
+              "threshold": 33.191637
+            },
+            "Mahalanobis": {
+              "auc": 0.5213,
+              "recall": 0.279,
+              "precision": 0.6842,
+              "f1": 0.3963,
+              "fpr": 0.2,
+              "threshold": 33.191637,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "SqlInjection.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4807,
+              "recall": 0.226,
+              "precision": 0.7902,
+              "f1": 0.3515,
+              "fpr": 0.2,
+              "threshold": 0.991578
+            },
+            "MSP": {
+              "auc": 0.4678,
+              "recall": 0.23,
+              "precision": 0.7931,
+              "f1": 0.3566,
+              "fpr": 0.2,
+              "threshold": 0.198037
+            },
+            "ODIN": {
+              "auc": 0.4597,
+              "recall": 0.214,
+              "precision": 0.781,
+              "f1": 0.3359,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "ODIN_T1000": {
+              "auc": 0.4597,
+              "recall": 0.214,
+              "precision": 0.781,
+              "f1": 0.3359,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5623,
+              "recall": 0.322,
+              "precision": 0.8429,
+              "f1": 0.466,
+              "fpr": 0.2,
+              "threshold": 32.845487
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5694,
+              "recall": 0.324,
+              "precision": 0.8438,
+              "f1": 0.4682,
+              "fpr": 0.2,
+              "threshold": 33.191637
+            },
+            "Mahalanobis": {
+              "auc": 0.5694,
+              "recall": 0.324,
+              "precision": 0.8438,
+              "f1": 0.4682,
+              "fpr": 0.2,
+              "threshold": 33.191637,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        },
+        "DictionaryBruteForce.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.5531,
+              "recall": 0.298,
+              "precision": 0.8324,
+              "f1": 0.4389,
+              "fpr": 0.2,
+              "threshold": 0.991578
+            },
+            "MSP": {
+              "auc": 0.4978,
+              "recall": 0.238,
+              "precision": 0.7987,
+              "f1": 0.3667,
+              "fpr": 0.2,
+              "threshold": 0.198037
+            },
+            "ODIN": {
+              "auc": 0.4482,
+              "recall": 0.13,
+              "precision": 0.6842,
+              "f1": 0.2185,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "ODIN_T1000": {
+              "auc": 0.4482,
+              "recall": 0.13,
+              "precision": 0.6842,
+              "f1": 0.2185,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "Mahalanobis_known": {
+              "auc": 0.592,
+              "recall": 0.36,
+              "precision": 0.8571,
+              "f1": 0.507,
+              "fpr": 0.2,
+              "threshold": 32.845487
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5924,
+              "recall": 0.356,
+              "precision": 0.8558,
+              "f1": 0.5028,
+              "fpr": 0.2,
+              "threshold": 33.191637
+            },
+            "Mahalanobis": {
+              "auc": 0.5924,
+              "recall": 0.356,
+              "precision": 0.8558,
+              "f1": 0.5028,
+              "fpr": 0.2,
+              "threshold": 33.191637,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Recon-PortScan.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6406,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 0.991578
+            },
+            "MSP": {
+              "auc": 0.6474,
+              "recall": 0.452,
+              "precision": 0.8828,
+              "f1": 0.5979,
+              "fpr": 0.2,
+              "threshold": 0.198037
+            },
+            "ODIN": {
+              "auc": 0.6276,
+              "recall": 0.398,
+              "precision": 0.869,
+              "f1": 0.546,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "ODIN_T1000": {
+              "auc": 0.6276,
+              "recall": 0.398,
+              "precision": 0.869,
+              "f1": 0.546,
+              "fpr": 0.2,
+              "threshold": 0.874284
+            },
+            "Mahalanobis_known": {
+              "auc": 0.4952,
+              "recall": 0.272,
+              "precision": 0.8193,
+              "f1": 0.4084,
+              "fpr": 0.2,
+              "threshold": 32.845487
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5136,
+              "recall": 0.268,
+              "precision": 0.8171,
+              "f1": 0.4036,
+              "fpr": 0.2,
+              "threshold": 33.191637
+            },
+            "Mahalanobis": {
+              "auc": 0.5136,
+              "recall": 0.268,
+              "precision": 0.8171,
+              "f1": 0.4036,
+              "fpr": 0.2,
+              "threshold": 33.191637,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "known"
+        }
+      },
+      "n_fit": 280,
+      "n_benign_test": 150,
+      "mahalanobis_fit": {
+        "known": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+          "n_classes_used": 2,
+          "classes_used": [
+            0,
+            6
+          ],
+          "classes_used_names": [
+            "Benign",
+            "DDos"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "6": 1
+          },
+          "contiguous_remap_needed": true
+        },
+        "argmax": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+          "n_classes_used": 6,
+          "classes_used": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          "classes_used_names": [
+            "Benign",
+            "WebBased",
+            "Spoofing",
+            "Recon",
+            "DDos",
+            "BruteForce"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "6": 4,
+            "7": 5
+          },
+          "contiguous_remap_needed": true
+        }
+      },
+      "odin_temperature_selection": {
+        "selected_temperature": 1000.0,
+        "selection_metric": "in-domain AUC (ODIN score)",
+        "selection_in_domain_auc": 0.6976,
+        "default_temperature": 1000.0,
+        "default_in_domain_auc": 0.6976,
+        "sweep": {
+          "ODIN_T1": {
+            "in_domain_auc": 0.6461,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T10": {
+            "in_domain_auc": 0.6794,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T100": {
+            "in_domain_auc": 0.6959,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T1000": {
+            "in_domain_auc": 0.6976,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": true
+          }
+        }
+      }
+    },
+    "99": {
+      "protocols": {
+        "DNS_Spoofing.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4523,
+              "recall": 0.182,
+              "precision": 0.7521,
+              "f1": 0.2931,
+              "fpr": 0.2,
+              "threshold": 0.980267
+            },
+            "MSP": {
+              "auc": 0.446,
+              "recall": 0.262,
+              "precision": 0.8137,
+              "f1": 0.3964,
+              "fpr": 0.2,
+              "threshold": 0.117351
+            },
+            "ODIN": {
+              "auc": 0.4008,
+              "recall": 0.17,
+              "precision": 0.7391,
+              "f1": 0.2764,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "ODIN_T1000": {
+              "auc": 0.4008,
+              "recall": 0.17,
+              "precision": 0.7391,
+              "f1": 0.2764,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "Mahalanobis_known": {
+              "auc": 0.5991,
+              "recall": 0.384,
+              "precision": 0.8649,
+              "f1": 0.5319,
+              "fpr": 0.2,
+              "threshold": 43.570149
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.6009,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 43.860847
+            },
+            "Mahalanobis": {
+              "auc": 0.6009,
+              "recall": 0.386,
+              "precision": 0.8655,
+              "f1": 0.5339,
+              "fpr": 0.2,
+              "threshold": 43.860847,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        },
+        "Mirai-udpplain.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 233,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.65,
+              "recall": 0.3047,
+              "precision": 0.703,
+              "f1": 0.4251,
+              "fpr": 0.2,
+              "threshold": 0.980267
+            },
+            "MSP": {
+              "auc": 0.5896,
+              "recall": 0.3863,
+              "precision": 0.75,
+              "f1": 0.5099,
+              "fpr": 0.2,
+              "threshold": 0.117351
+            },
+            "ODIN": {
+              "auc": 0.5881,
+              "recall": 0.2876,
+              "precision": 0.6907,
+              "f1": 0.4061,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "ODIN_T1000": {
+              "auc": 0.5881,
+              "recall": 0.2876,
+              "precision": 0.6907,
+              "f1": 0.4061,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "Mahalanobis_known": {
+              "auc": 0.475,
+              "recall": 0.2318,
+              "precision": 0.6429,
+              "f1": 0.3407,
+              "fpr": 0.2,
+              "threshold": 43.570149
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.4772,
+              "recall": 0.2361,
+              "precision": 0.6471,
+              "f1": 0.3459,
+              "fpr": 0.2,
+              "threshold": 43.860847
+            },
+            "Mahalanobis": {
+              "auc": 0.4772,
+              "recall": 0.2361,
+              "precision": 0.6471,
+              "f1": 0.3459,
+              "fpr": 0.2,
+              "threshold": 43.860847,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        },
+        "SqlInjection.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.4983,
+              "recall": 0.242,
+              "precision": 0.8013,
+              "f1": 0.3717,
+              "fpr": 0.2,
+              "threshold": 0.980267
+            },
+            "MSP": {
+              "auc": 0.5064,
+              "recall": 0.28,
+              "precision": 0.8235,
+              "f1": 0.4179,
+              "fpr": 0.2,
+              "threshold": 0.117351
+            },
+            "ODIN": {
+              "auc": 0.5017,
+              "recall": 0.316,
+              "precision": 0.8404,
+              "f1": 0.4593,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "ODIN_T1000": {
+              "auc": 0.5017,
+              "recall": 0.316,
+              "precision": 0.8404,
+              "f1": 0.4593,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "Mahalanobis_known": {
+              "auc": 0.532,
+              "recall": 0.26,
+              "precision": 0.8125,
+              "f1": 0.3939,
+              "fpr": 0.2,
+              "threshold": 43.570149
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.533,
+              "recall": 0.264,
+              "precision": 0.8148,
+              "f1": 0.3988,
+              "fpr": 0.2,
+              "threshold": 43.860847
+            },
+            "Mahalanobis": {
+              "auc": 0.533,
+              "recall": 0.264,
+              "precision": 0.8148,
+              "f1": 0.3988,
+              "fpr": 0.2,
+              "threshold": 43.860847,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        },
+        "DictionaryBruteForce.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.5692,
+              "recall": 0.322,
+              "precision": 0.8429,
+              "f1": 0.466,
+              "fpr": 0.2,
+              "threshold": 0.980267
+            },
+            "MSP": {
+              "auc": 0.5381,
+              "recall": 0.334,
+              "precision": 0.8477,
+              "f1": 0.4792,
+              "fpr": 0.2,
+              "threshold": 0.117351
+            },
+            "ODIN": {
+              "auc": 0.4953,
+              "recall": 0.206,
+              "precision": 0.7744,
+              "f1": 0.3254,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "ODIN_T1000": {
+              "auc": 0.4953,
+              "recall": 0.206,
+              "precision": 0.7744,
+              "f1": 0.3254,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "Mahalanobis_known": {
+              "auc": 0.548,
+              "recall": 0.3,
+              "precision": 0.8333,
+              "f1": 0.4412,
+              "fpr": 0.2,
+              "threshold": 43.570149
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.5464,
+              "recall": 0.3,
+              "precision": 0.8333,
+              "f1": 0.4412,
+              "fpr": 0.2,
+              "threshold": 43.860847
+            },
+            "Mahalanobis": {
+              "auc": 0.548,
+              "recall": 0.3,
+              "precision": 0.8333,
+              "f1": 0.4412,
+              "fpr": 0.2,
+              "threshold": 43.570149,
+              "variant": "known",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "known",
+          "mahalanobis_variant_by_f1": "known"
+        },
+        "Recon-PortScan.pcap": {
+          "n_benign_test": 150,
+          "n_attack": 500,
+          "methods": {
+            "GNN-raw": {
+              "auc": 0.6548,
+              "recall": 0.268,
+              "precision": 0.8171,
+              "f1": 0.4036,
+              "fpr": 0.2,
+              "threshold": 0.980267
+            },
+            "MSP": {
+              "auc": 0.6793,
+              "recall": 0.502,
+              "precision": 0.8932,
+              "f1": 0.6428,
+              "fpr": 0.2,
+              "threshold": 0.117351
+            },
+            "ODIN": {
+              "auc": 0.6607,
+              "recall": 0.482,
+              "precision": 0.8893,
+              "f1": 0.6252,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "ODIN_T1000": {
+              "auc": 0.6607,
+              "recall": 0.482,
+              "precision": 0.8893,
+              "f1": 0.6252,
+              "fpr": 0.2,
+              "threshold": 0.874035
+            },
+            "Mahalanobis_known": {
+              "auc": 0.4586,
+              "recall": 0.244,
+              "precision": 0.8026,
+              "f1": 0.3742,
+              "fpr": 0.2,
+              "threshold": 43.570149
+            },
+            "Mahalanobis_argmax": {
+              "auc": 0.4596,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 43.860847
+            },
+            "Mahalanobis": {
+              "auc": 0.4596,
+              "recall": 0.25,
+              "precision": 0.8065,
+              "f1": 0.3817,
+              "fpr": 0.2,
+              "threshold": 43.860847,
+              "variant": "argmax",
+              "selected_by": "test AUC (ties -> higher F1)"
+            }
+          },
+          "mahalanobis_variant": "argmax",
+          "mahalanobis_variant_by_f1": "argmax"
+        }
+      },
+      "n_fit": 280,
+      "n_benign_test": 150,
+      "mahalanobis_fit": {
+        "known": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "known in-domain labels (benign-fit -> Benign(0), in-domain DDoS -> DDos(6))",
+          "n_classes_used": 2,
+          "classes_used": [
+            0,
+            6
+          ],
+          "classes_used_names": [
+            "Benign",
+            "DDos"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "6": 1
+          },
+          "contiguous_remap_needed": true
+        },
+        "argmax": {
+          "n_fit_flows": 780,
+          "n_benign_fit": 280,
+          "n_indomain_attack": 500,
+          "label_source": "base model argmax prediction on the same in-domain fit flows (label-free)",
+          "n_classes_used": 6,
+          "classes_used": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          "classes_used_names": [
+            "Benign",
+            "WebBased",
+            "Spoofing",
+            "Recon",
+            "DDos",
+            "BruteForce"
+          ],
+          "label_remap_to_fit_index": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 3,
+            "6": 4,
+            "7": 5
+          },
+          "contiguous_remap_needed": true
+        }
+      },
+      "odin_temperature_selection": {
+        "selected_temperature": 1000.0,
+        "selection_metric": "in-domain AUC (ODIN score)",
+        "selection_in_domain_auc": 0.6845,
+        "default_temperature": 1000.0,
+        "default_in_domain_auc": 0.6845,
+        "sweep": {
+          "ODIN_T1": {
+            "in_domain_auc": 0.6545,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T10": {
+            "in_domain_auc": 0.6702,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T100": {
+            "in_domain_auc": 0.6827,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": false
+          },
+          "ODIN_T1000": {
+            "in_domain_auc": 0.6845,
+            "n_benign_val": 70,
+            "n_indomain_attack": 500,
+            "selected": true
+          }
+        }
+      }
+    }
+  },
+  "mean_std": {
+    "DNS_Spoofing.pcap": {
+      "GNN-raw": {
+        "auc_mean": 0.4276,
+        "auc_std": 0.0139,
+        "recall_mean": 0.1688,
+        "recall_std": 0.0066,
+        "precision_mean": 0.7375,
+        "precision_std": 0.0073,
+        "f1_mean": 0.2747,
+        "f1_std": 0.0093,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "MSP": {
+        "auc_mean": 0.4083,
+        "auc_std": 0.0215,
+        "recall_mean": 0.23,
+        "recall_std": 0.0252,
+        "precision_mean": 0.7915,
+        "precision_std": 0.0191,
+        "f1_mean": 0.356,
+        "f1_std": 0.0324,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN": {
+        "auc_mean": 0.3636,
+        "auc_std": 0.0213,
+        "recall_mean": 0.0976,
+        "recall_std": 0.0385,
+        "precision_mean": 0.6002,
+        "precision_std": 0.0794,
+        "f1_mean": 0.1667,
+        "f1_std": 0.0588,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN_T1000": {
+        "auc_mean": 0.3636,
+        "auc_std": 0.0213,
+        "recall_mean": 0.0976,
+        "recall_std": 0.0385,
+        "precision_mean": 0.6002,
+        "precision_std": 0.0794,
+        "f1_mean": 0.1667,
+        "f1_std": 0.0588,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_known": {
+        "auc_mean": 0.6211,
+        "auc_std": 0.0154,
+        "recall_mean": 0.3916,
+        "recall_std": 0.028,
+        "precision_mean": 0.8667,
+        "precision_std": 0.008,
+        "f1_mean": 0.539,
+        "f1_std": 0.0278,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_argmax": {
+        "auc_mean": 0.6283,
+        "auc_std": 0.0185,
+        "recall_mean": 0.3892,
+        "recall_std": 0.0277,
+        "precision_mean": 0.866,
+        "precision_std": 0.0079,
+        "f1_mean": 0.5366,
+        "f1_std": 0.0275,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis": {
+        "auc_mean": 0.6283,
+        "auc_std": 0.0185,
+        "recall_mean": 0.3892,
+        "recall_std": 0.0277,
+        "precision_mean": 0.866,
+        "precision_std": 0.0079,
+        "f1_mean": 0.5366,
+        "f1_std": 0.0275,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      }
+    },
+    "Mirai-udpplain.pcap": {
+      "GNN-raw": {
+        "auc_mean": 0.6238,
+        "auc_std": 0.0154,
+        "recall_mean": 0.2876,
+        "recall_std": 0.0098,
+        "precision_mean": 0.6906,
+        "precision_std": 0.0072,
+        "f1_mean": 0.406,
+        "f1_std": 0.011,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "MSP": {
+        "auc_mean": 0.5486,
+        "auc_std": 0.0254,
+        "recall_mean": 0.3296,
+        "recall_std": 0.0446,
+        "precision_mean": 0.7163,
+        "precision_std": 0.0289,
+        "f1_mean": 0.4506,
+        "f1_std": 0.0479,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN": {
+        "auc_mean": 0.5458,
+        "auc_std": 0.0275,
+        "recall_mean": 0.1914,
+        "recall_std": 0.0534,
+        "precision_mean": 0.5875,
+        "precision_std": 0.0629,
+        "f1_mean": 0.2873,
+        "f1_std": 0.0672,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN_T1000": {
+        "auc_mean": 0.5458,
+        "auc_std": 0.0275,
+        "recall_mean": 0.1914,
+        "recall_std": 0.0534,
+        "precision_mean": 0.5875,
+        "precision_std": 0.0629,
+        "f1_mean": 0.2873,
+        "f1_std": 0.0672,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_known": {
+        "auc_mean": 0.5069,
+        "auc_std": 0.0226,
+        "recall_mean": 0.2464,
+        "recall_std": 0.0197,
+        "precision_mean": 0.6559,
+        "precision_std": 0.0171,
+        "f1_mean": 0.358,
+        "f1_std": 0.0232,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_argmax": {
+        "auc_mean": 0.509,
+        "auc_std": 0.0216,
+        "recall_mean": 0.2403,
+        "recall_std": 0.0246,
+        "precision_mean": 0.6496,
+        "precision_std": 0.0236,
+        "f1_mean": 0.3506,
+        "f1_std": 0.0296,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis": {
+        "auc_mean": 0.5102,
+        "auc_std": 0.0221,
+        "recall_mean": 0.2455,
+        "recall_std": 0.0177,
+        "precision_mean": 0.6553,
+        "precision_std": 0.0155,
+        "f1_mean": 0.357,
+        "f1_std": 0.0208,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      }
+    },
+    "SqlInjection.pcap": {
+      "GNN-raw": {
+        "auc_mean": 0.4751,
+        "auc_std": 0.0132,
+        "recall_mean": 0.2264,
+        "recall_std": 0.0086,
+        "precision_mean": 0.7903,
+        "precision_std": 0.0062,
+        "f1_mean": 0.3519,
+        "f1_std": 0.011,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "MSP": {
+        "auc_mean": 0.4661,
+        "auc_std": 0.0234,
+        "recall_mean": 0.2316,
+        "recall_std": 0.0354,
+        "precision_mean": 0.791,
+        "precision_std": 0.0266,
+        "f1_mean": 0.3574,
+        "f1_std": 0.0454,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN": {
+        "auc_mean": 0.465,
+        "auc_std": 0.021,
+        "recall_mean": 0.2412,
+        "recall_std": 0.0451,
+        "precision_mean": 0.7964,
+        "precision_std": 0.0295,
+        "f1_mean": 0.3688,
+        "f1_std": 0.0557,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN_T1000": {
+        "auc_mean": 0.465,
+        "auc_std": 0.021,
+        "recall_mean": 0.2412,
+        "recall_std": 0.0451,
+        "precision_mean": 0.7964,
+        "precision_std": 0.0295,
+        "f1_mean": 0.3688,
+        "f1_std": 0.0557,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_known": {
+        "auc_mean": 0.5545,
+        "auc_std": 0.0184,
+        "recall_mean": 0.2756,
+        "recall_std": 0.024,
+        "precision_mean": 0.8204,
+        "precision_std": 0.0118,
+        "f1_mean": 0.4122,
+        "f1_std": 0.028,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_argmax": {
+        "auc_mean": 0.5583,
+        "auc_std": 0.0185,
+        "recall_mean": 0.2764,
+        "recall_std": 0.0243,
+        "precision_mean": 0.8208,
+        "precision_std": 0.0118,
+        "f1_mean": 0.4131,
+        "f1_std": 0.0281,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis": {
+        "auc_mean": 0.5589,
+        "auc_std": 0.0185,
+        "recall_mean": 0.2768,
+        "recall_std": 0.024,
+        "precision_mean": 0.821,
+        "precision_std": 0.0116,
+        "f1_mean": 0.4136,
+        "f1_std": 0.0277,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      }
+    },
+    "DictionaryBruteForce.pcap": {
+      "GNN-raw": {
+        "auc_mean": 0.5474,
+        "auc_std": 0.0125,
+        "recall_mean": 0.3012,
+        "recall_std": 0.0109,
+        "precision_mean": 0.8337,
+        "precision_std": 0.0048,
+        "f1_mean": 0.4425,
+        "f1_std": 0.0123,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "MSP": {
+        "auc_mean": 0.497,
+        "auc_std": 0.0242,
+        "recall_mean": 0.2572,
+        "recall_std": 0.0496,
+        "precision_mean": 0.8063,
+        "precision_std": 0.0294,
+        "f1_mean": 0.3883,
+        "f1_std": 0.0601,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN": {
+        "auc_mean": 0.4551,
+        "auc_std": 0.0239,
+        "recall_mean": 0.1484,
+        "recall_std": 0.0324,
+        "precision_mean": 0.7056,
+        "precision_std": 0.0422,
+        "f1_mean": 0.2444,
+        "f1_std": 0.0462,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN_T1000": {
+        "auc_mean": 0.4551,
+        "auc_std": 0.0239,
+        "recall_mean": 0.1484,
+        "recall_std": 0.0324,
+        "precision_mean": 0.7056,
+        "precision_std": 0.0422,
+        "f1_mean": 0.2444,
+        "f1_std": 0.0462,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_known": {
+        "auc_mean": 0.5785,
+        "auc_std": 0.0209,
+        "recall_mean": 0.3052,
+        "recall_std": 0.0284,
+        "precision_mean": 0.8348,
+        "precision_std": 0.0117,
+        "f1_mean": 0.4465,
+        "f1_std": 0.0315,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_argmax": {
+        "auc_mean": 0.5768,
+        "auc_std": 0.0191,
+        "recall_mean": 0.3024,
+        "recall_std": 0.0285,
+        "precision_mean": 0.8335,
+        "precision_std": 0.0121,
+        "f1_mean": 0.4433,
+        "f1_std": 0.0318,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis": {
+        "auc_mean": 0.5795,
+        "auc_std": 0.0203,
+        "recall_mean": 0.3044,
+        "recall_std": 0.0268,
+        "precision_mean": 0.8345,
+        "precision_std": 0.0113,
+        "f1_mean": 0.4456,
+        "f1_std": 0.0299,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      }
+    },
+    "Recon-PortScan.pcap": {
+      "GNN-raw": {
+        "auc_mean": 0.639,
+        "auc_std": 0.0087,
+        "recall_mean": 0.2488,
+        "recall_std": 0.0113,
+        "precision_mean": 0.8055,
+        "precision_std": 0.007,
+        "f1_mean": 0.3801,
+        "f1_std": 0.0139,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "MSP": {
+        "auc_mean": 0.6466,
+        "auc_std": 0.0197,
+        "recall_mean": 0.4648,
+        "recall_std": 0.0254,
+        "precision_mean": 0.8854,
+        "precision_std": 0.0055,
+        "f1_mean": 0.6093,
+        "f1_std": 0.0231,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN": {
+        "auc_mean": 0.633,
+        "auc_std": 0.017,
+        "recall_mean": 0.43,
+        "recall_std": 0.0349,
+        "precision_mean": 0.8769,
+        "precision_std": 0.0087,
+        "f1_mean": 0.5764,
+        "f1_std": 0.0332,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "ODIN_T1000": {
+        "auc_mean": 0.633,
+        "auc_std": 0.017,
+        "recall_mean": 0.43,
+        "recall_std": 0.0349,
+        "precision_mean": 0.8769,
+        "precision_std": 0.0087,
+        "f1_mean": 0.5764,
+        "f1_std": 0.0332,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_known": {
+        "auc_mean": 0.4878,
+        "auc_std": 0.0266,
+        "recall_mean": 0.2516,
+        "recall_std": 0.0107,
+        "precision_mean": 0.8072,
+        "precision_std": 0.0064,
+        "f1_mean": 0.3835,
+        "f1_std": 0.0131,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis_argmax": {
+        "auc_mean": 0.4888,
+        "auc_std": 0.0334,
+        "recall_mean": 0.2496,
+        "recall_std": 0.0101,
+        "precision_mean": 0.806,
+        "precision_std": 0.0061,
+        "f1_mean": 0.3811,
+        "f1_std": 0.0124,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      },
+      "Mahalanobis": {
+        "auc_mean": 0.4936,
+        "auc_std": 0.0296,
+        "recall_mean": 0.2512,
+        "recall_std": 0.0096,
+        "precision_mean": 0.8071,
+        "precision_std": 0.0059,
+        "f1_mean": 0.3831,
+        "f1_std": 0.0118,
+        "fpr_mean": 0.2,
+        "fpr_std": 0.0
+      }
+    }
+  },
+  "reference_our_system": {
+    "source_file": "eval_results/fusion_comparison/complete_fusion_controlled_fpr.json",
+    "key": "Fusion-complete",
+    "per_protocol": {
+      "DNS_Spoofing.pcap": {
+        "auc": 0.5726,
+        "recall": 0.334,
+        "fpr": 0.2,
+        "precision": 0.8477,
+        "f1": 0.4792
+      },
+      "Mirai-udpplain.pcap": {
+        "auc": 0.7064,
+        "recall": 0.5107,
+        "fpr": 0.2,
+        "precision": 0.7987,
+        "f1": 0.623
+      },
+      "SqlInjection.pcap": {
+        "auc": 0.5948,
+        "recall": 0.284,
+        "fpr": 0.2,
+        "precision": 0.8256,
+        "f1": 0.4226
+      },
+      "DictionaryBruteForce.pcap": {
+        "auc": 0.6186,
+        "recall": 0.42,
+        "fpr": 0.2,
+        "precision": 0.875,
+        "f1": 0.5676
+      },
+      "Recon-PortScan.pcap": {
+        "auc": 0.6294,
+        "recall": 0.304,
+        "fpr": 0.2,
+        "precision": 0.8352,
+        "f1": 0.4457
+      }
+    },
+    "protocols_missing": []
+  }
+}
